@@ -330,4 +330,482 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 4px;">
                     <label>الشهر المحدد:</label>
-    
+                    <input type="month" id="report-month" onchange="renderReports()" style="flex: 1;">
+                </div>
+            </div>
+
+            <div class="report-tabs">
+                <button class="tab-btn active" id="tab-present" onclick="switchReportTab('present')">1. الحاضرين</button>
+                <button class="tab-btn" id="tab-absent" onclick="switchReportTab('absent')">2. الغائبين</button>
+                <button class="tab-btn" id="tab-monthly" onclick="switchReportTab('monthly')">3. نسبة حضور 100%</button>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr id="report-table-head"></tr>
+                    </thead>
+                    <tbody id="report-table-body"></tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 14px;">
+                <button class="btn btn-gray" onclick="showPage('page-main')" style="width: 100%;">عودة للرئيسية</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>خدمة مدارس الأحد - كنيسة مارمينا والبابا كيرلس</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- إعدادات Firebase ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-9N2PqeTZy73xH5EdNQVzSGbNOgyJonw",
+            authDomain: "marminaavakyrillos.firebaseapp.com",
+            projectId: "marminaavakyrillos",
+            storageBucket: "marminaavakyrillos.firebasestorage.app",
+            messagingSenderId: "155216414010",
+            appId: "1:155216414010:web:dc719fd4f8c6fae69c3c03",
+            measurementId: "G-YEYCJZ2ZR1"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+            console.warn("تنبيه وضع الأوفلاين:", err.code);
+        });
+
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+
+        function updateConnectionStatus() {
+            const badge = document.getElementById('connection-status');
+            if (navigator.onLine) {
+                badge.className = 'status-badge online';
+                badge.innerHTML = '<i class="fa-solid fa-wifi"></i> أونلاين (متصل)';
+            } else {
+                badge.className = 'status-badge offline';
+                badge.innerHTML = '<i class="fa-solid fa-plane"></i> أوفلاين (تخزين محلي)';
+            }
+        }
+
+        const stages = [
+            { id: 'preschool', name: 'تمهيدي', icon: 'fa-shapes', color: '#ff5722' },
+            { id: 'kg', name: 'حضانة', icon: 'fa-child-reaching', color: '#ffb300' },
+            { id: 'grade1', name: 'أولى', icon: 'fa-1', color: '#7cb342' },
+            { id: 'grade2', name: 'ثانية', icon: 'fa-2', color: '#00acc1' },
+            { id: 'grade3', name: 'ثالثة', icon: 'fa-3', color: '#3949ab' },
+            { id: 'grade4', name: 'رابعة', icon: 'fa-4', color: '#8e24aa' },
+            { id: 'grade5', name: 'خامسة', icon: 'fa-5', color: '#d81b60' },
+            { id: 'grade6', name: 'سادسة', icon: 'fa-6', color: '#00897b' }
+        ];
+
+        let currentStage = null;
+        let activeTab = 'present';
+        let currentStudentsList = [];
+        let allStudentsList = [];
+
+        window.onload = function() {
+            updateConnectionStatus();
+            renderStagesList();
+            populateStageDropdowns();
+            
+            const today = new Date().toISOString().split('T')[0];
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            
+            document.getElementById('register-date').value = today;
+            document.getElementById('report-date').value = today;
+            document.getElementById('report-month').value = currentMonth;
+        };
+
+        function renderStagesList() {
+            document.getElementById('stages-list').innerHTML = stages.map(s => `
+                <div class="stage-card">
+                    <div class="stage-title"><i class="fa-solid ${s.icon}" style="color:${s.color}"></i> ${s.name}</div>
+                    <div class="stage-buttons">
+                        <button class="btn btn-primary" onclick="openRegister('${s.id}', '${s.name}')"><i class="fa-solid fa-user-check"></i> تسجيل</button>
+                        <button class="btn btn-success" onclick="openReport('${s.id}', '${s.name}')"><i class="fa-solid fa-chart-bar"></i> تقرير</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function populateStageDropdowns() {
+            const manualSelect = document.getElementById('manual-stage');
+            const filterSelect = document.getElementById('manage-filter-stage');
+
+            manualSelect.innerHTML = stages.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            filterSelect.innerHTML = `<option value="all">كل المراحل</option>` + stages.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        }
+
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        // --- إدارة وبحث وتعديل وحذف المخدومين ---
+        async function openManageStudents() {
+            showPage('page-manage');
+            document.getElementById('manage-search').value = '';
+            document.getElementById('manage-filter-stage').value = 'all';
+            await fetchAllStudents();
+        }
+
+        async function fetchAllStudents() {
+            const container = document.getElementById('manage-students-list');
+            container.innerHTML = '<p style="padding:20px;">جاري تحميل جميع الأسماء...</p>';
+
+            try {
+                const snap = await db.collection('students').get();
+                allStudentsList = snap.docs.map(doc => ({
+                    docId: doc.id,
+                    name: doc.data().name,
+                    stageId: doc.data().stageId
+                })).sort((a,b) => a.name.localeCompare(b.name, 'ar'));
+
+                filterManageStudents();
+            } catch(e) {
+                console.error(e);
+                container.innerHTML = '<p style="padding:20px; color:#c62828;">تعذر تحميل الأسماء.</p>';
+            }
+        }
+
+        function filterManageStudents() {
+            const container = document.getElementById('manage-students-list');
+            const searchVal = document.getElementById('manage-search').value.trim().toLowerCase();
+            const stageFilter = document.getElementById('manage-filter-stage').value;
+
+            const filtered = allStudentsList.filter(s => {
+                const matchesName = s.name.toLowerCase().includes(searchVal);
+                const matchesStage = stageFilter === 'all' || s.stageId === stageFilter;
+                return matchesName && matchesStage;
+            });
+
+            if(filtered.length === 0) {
+                container.innerHTML = '<p style="padding:20px; color:#64748b;">لا يوجد مخدومين يطابقون البحث.</p>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(s => {
+                const stageObj = stages.find(st => st.id === s.stageId) || { name: s.stageId };
+                return `
+                    <div class="student-list-item">
+                        <div class="student-info">
+                            <span class="student-name">${s.name}</span>
+                            <span class="student-stage-badge">${stageObj.name}</span>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn-icon btn-warning" onclick="editStudent('${s.docId}', '${s.name}', '${s.stageId}')" title="تعديل">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button class="btn-icon btn-danger" onclick="deleteStudent('${s.docId}', '${s.name}')" title="حذف">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- تعديل اسم المخدوم ---
+        async function editStudent(docId, oldName, stageId) {
+            const newName = prompt('تعديل اسم المخدوم:', oldName);
+            if (!newName || newName.trim() === '' || newName.trim() === oldName) return;
+
+            const cleanNewName = newName.trim();
+            const newDocId = `${stageId}_${cleanNewName}`;
+
+            try {
+                // إنشاء المستند الجديد بالاسم المعدل ثم حذف القديم
+                await db.collection('students').doc(newDocId).set({
+                    name: cleanNewName,
+                    stageId: stageId
+                });
+                await db.collection('students').doc(docId).delete();
+
+                alert('تم تعديل الاسم بنجاح!');
+                await fetchAllStudents();
+            } catch(e) {
+                console.error(e);
+                alert('حدث خطأ أثناء التعديل');
+            }
+        }
+
+        // --- حذف مخدوم ---
+        async function deleteStudent(docId, name) {
+            if (confirm(`هل أنت تأكد من حذف المخدوم (${name}) نهائياً؟`)) {
+                try {
+                    await db.collection('students').doc(docId).delete();
+                    alert('تم الحذف بنجاح!');
+                    await fetchAllStudents();
+                } catch(e) {
+                    console.error(e);
+                    alert('حدث خطأ أثناء الحذف');
+                }
+            }
+        }
+
+        // --- إضافة مخدوم يدوياً ---
+        async function addManualStudent() {
+            const name = document.getElementById('manual-name').value.trim();
+            const stageId = document.getElementById('manual-stage').value;
+            if(!name) return alert('برجاء كتابة الاسم');
+
+            try {
+                await db.collection('students').doc(`${stageId}_${name}`).set({
+                    name: name,
+                    stageId: stageId
+                });
+                alert('تمت إضافة الاسم بنجاح!');
+                document.getElementById('manual-name').value = '';
+            } catch(e) {
+                console.error("خطأ أثناء الإضافة:", e);
+                alert("حدث خطأ أثناء الحفظ");
+            }
+        }
+
+        // --- استيراد الإكسيل ---
+        async function importExcel() {
+            const fileInput = document.getElementById('excel-file');
+            if(!fileInput.files.length) return alert('اختر ملف أولاً');
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet);
+
+                    let opsCount = 0;
+                    let batch = db.batch();
+                    let totalAdded = 0;
+
+                    for (const row of rows) {
+                        const name = row['الاسم'] || row['اسم'] || row['Name'];
+                        const stageName = row['المرحلة'] || row['Stage'];
+
+                        if(name && stageName) {
+                            const cleanStageStr = String(stageName).trim();
+                            const matchedStage = stages.find(s => cleanStageStr.includes(s.name) || s.name.includes(cleanStageStr));
+                            
+                            if(matchedStage) {
+                                const cleanName = String(name).trim();
+                                const docRef = db.collection('students').doc(`${matchedStage.id}_${cleanName}`);
+                                batch.set(docRef, { name: cleanName, stageId: matchedStage.id });
+                                opsCount++;
+                                totalAdded++;
+
+                                if (opsCount >= 400) {
+                                    await batch.commit();
+                                    batch = db.batch();
+                                    opsCount = 0;
+                                }
+                            }
+                        }
+                    }
+
+                    if (opsCount > 0) {
+                        await batch.commit();
+                    }
+
+                    alert(`تم استيراد ${totalAdded} اسم جديد بنجاح!`);
+                    showPage('page-main');
+                } catch(err) {
+                    console.error("خطأ في الاستيراد:", err);
+                    alert("حدث خطأ أثناء معالجة الملف");
+                }
+            };
+            reader.readAsArrayBuffer(fileInput.files[0]);
+        }
+
+        // --- تسجيل الحضور والغياب ---
+        function openRegister(stageId, stageName) {
+            currentStage = stageId;
+            document.getElementById('register-title').innerText = 'تسجيل حضور - ' + stageName;
+            document.getElementById('search-student').value = '';
+            showPage('page-register');
+            loadAttendanceList();
+        }
+
+        async function loadAttendanceList() {
+            const date = document.getElementById('register-date').value;
+            const container = document.getElementById('students-container');
+            container.innerHTML = '<p style="padding:20px;">جاري تحميل الأسماء...</p>';
+
+            try {
+                const studentsSnap = await db.collection('students')
+                    .where('stageId', '==', currentStage)
+                    .get();
+
+                currentStudentsList = studentsSnap.docs.map(doc => doc.data().name).sort((a,b) => a.localeCompare(b, 'ar'));
+
+                if(currentStudentsList.length === 0) {
+                    container.innerHTML = '<p style="padding:20px; color:#64748b;">لا توجد أسماء مضافة لهذه المرحلة.</p>';
+                    return;
+                }
+
+                const attDoc = await db.collection('attendance').doc(`${currentStage}_${date}`).get();
+                const attendanceMap = attDoc.exists ? attDoc.data() : {};
+
+                renderStudentListUI(attendanceMap);
+            } catch(e) {
+                console.error("خطأ تحميل البيانات:", e);
+                container.innerHTML = '<p style="padding:20px; color:#c62828;">تعذر تحميل الأسماء.</p>';
+            }
+        }
+
+        function renderStudentListUI(attendanceMap) {
+            const container = document.getElementById('students-container');
+            const searchVal = document.getElementById('search-student').value.trim().toLowerCase();
+
+            const filtered = currentStudentsList.filter(student => student.toLowerCase().includes(searchVal));
+
+            if(filtered.length === 0) {
+                container.innerHTML = '<p style="padding:20px; color:#64748b;">لا توجد نتائج مطابقة للبحث.</p>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(student => {
+                const status = attendanceMap[student] || '';
+                return `
+                    <div class="student-list-item">
+                        <span class="student-name" style="text-align:right;">${student}</span>
+                        <div class="action-buttons">
+                            <button class="btn-toggle ${status === 'حاضر' ? 'active-present' : ''}" onclick="toggleAttendance('${student}', 'حاضر')">
+                                <i class="fa-solid fa-check"></i> حاضر
+                            </button>
+                            <button class="btn-toggle ${status === 'غائب' ? 'active-absent' : ''}" onclick="toggleAttendance('${student}', 'غائب')">
+                                <i class="fa-solid fa-xmark"></i> غائب
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function filterStudents() {
+            const date = document.getElementById('register-date').value;
+            const attDoc = await db.collection('attendance').doc(`${currentStage}_${date}`).get();
+            const attendanceMap = attDoc.exists ? attDoc.data() : {};
+            renderStudentListUI(attendanceMap);
+        }
+
+        async function toggleAttendance(studentName, status) {
+            const date = document.getElementById('register-date').value;
+            const docRef = db.collection('attendance').doc(`${currentStage}_${date}`);
+            
+            try {
+                const docSnap = await docRef.get();
+                let attendanceMap = docSnap.exists ? docSnap.data() : {};
+
+                if(attendanceMap[studentName] === status) {
+                    delete attendanceMap[studentName];
+                } else {
+                    attendanceMap[studentName] = status;
+                }
+
+                await docRef.set(attendanceMap);
+                renderStudentListUI(attendanceMap);
+            } catch(e) {
+                console.error("خطأ أثناء تسجيل الحضور:", e);
+            }
+        }
+
+        // --- التقارير ---
+        function openReport(stageId, stageName) {
+            currentStage = stageId;
+            document.getElementById('report-title').innerText = 'تقرير - ' + stageName;
+            showPage('page-report');
+            renderReports();
+        }
+
+        function switchReportTab(tab) {
+            activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            renderReports();
+        }
+
+        async function renderReports() {
+            const date = document.getElementById('report-date').value;
+            const month = document.getElementById('report-month').value;
+            const thead = document.getElementById('report-table-head');
+            const tbody = document.getElementById('report-table-body');
+
+            tbody.innerHTML = '<tr><td colspan="4">جاري تحليل البيانات...</td></tr>';
+
+            try {
+                const studentsSnap = await db.collection('students').where('stageId', '==', currentStage).get();
+                const students = studentsSnap.docs.map(doc => doc.data().name).sort((a,b) => a.localeCompare(b, 'ar'));
+
+                const attDoc = await db.collection('attendance').doc(`${currentStage}_${date}`).get();
+                const attendanceMap = attDoc.exists ? attDoc.data() : {};
+
+                if(activeTab === 'present') {
+                    thead.innerHTML = '<th>م</th><th>اسم الحاضر</th><th>التاريخ</th><th>الحالة</th>';
+                    const presentList = students.filter(s => attendanceMap[s] === 'حاضر');
+
+                    tbody.innerHTML = presentList.length ? presentList.map((s, idx) => `
+                        <tr><td>${idx+1}</td><td><strong>${s}</strong></td><td>${date}</td><td><span style="color:#2e7d32; font-weight:800;">حاضر</span></td></tr>
+                    `).join('') : '<tr><td colspan="4">لا يوجد مخدومين حاضرين في هذا التاريخ</td></tr>';
+
+                } else if(activeTab === 'absent') {
+                    thead.innerHTML = '<th>م</th><th>اسم الغائب</th><th>التاريخ</th><th>الحالة</th>';
+                    const absentList = students.filter(s => attendanceMap[s] === 'غائب' || !attendanceMap[s]);
+
+                    tbody.innerHTML = absentList.length ? absentList.map((s, idx) => `
+                        <tr><td>${idx+1}</td><td><strong>${s}</strong></td><td>${date}</td><td><span style="color:#c62828; font-weight:800;">غائب</span></td></tr>
+                    `).join('') : '<tr><td colspan="4">لا يوجد غائبين في هذا التاريخ</td></tr>';
+
+                } else if(activeTab === 'monthly') {
+                    thead.innerHTML = '<th>م</th><th>اسم المخدوم</th><th>نسبة الحضور</th>';
+                    
+                    let monthlyCounts = {};
+                    students.forEach(s => monthlyCounts[s] = 0);
+
+                    const startPrefix = `${currentStage}_${month}`;
+                    const endPrefix = `${currentStage}_${month}\uf8ff`;
+
+                    const snapshot = await db.collection('attendance')
+                        .where(firebase.firestore.FieldPath.documentId(), '>=', startPrefix)
+                        .where(firebase.firestore.FieldPath.documentId(), '<=', endPrefix)
+                        .get();
+
+                    let totalRegisteredFridays = snapshot.size;
+
+                    if(totalRegisteredFridays === 0) {
+                        tbody.innerHTML = '<tr><td colspan="3">لم يتم تسجيل أي يوم في هذا الشهر حتى الآن</td></tr>';
+                        return;
+                    }
+
+                    snapshot.forEach(doc => {
+                        const dayData = doc.data();
+                        students.forEach(s => {
+                            if(dayData[s] === 'حاضر') {
+                                monthlyCounts[s] = (monthlyCounts[s] || 0) + 1;
+                            }
+                        });
+                    });
+
+                    const fullAttendanceStudents = students.filter(s => monthlyCounts[s] === totalRegisteredFridays);
+
+                    tbody.innerHTML = fullAttendanceStudents.length ? fullAttendanceStudents.map((s, idx) => `
+                        <tr>
+                            <td>${idx+1}</td>
+                            <td><strong>${s}</strong></td>
+                            <td><span style="background:#e8f5e9; color:#2e7d32; padding:4px 12px; border-radius:12px; font-weight:800;">حضر كامل الجمع (${totalRegisteredFridays} من ${totalRegisteredFridays})</span></td>
+                        </tr>
+                    `).join('') : `<tr><td colspan="3">لا يوجد مخدومين حضروا كامل الجمع في هذا الشهر (${totalRegisteredFridays} جمع)</td></tr>`;
+                }
+            } catch(e) {
+                console.error("خطأ التقارير:", e);
+                tbody.innerHTML = '<tr><td colspan="4" style="color:#c62828;">حدث خطأ أثناء تحميل التقرير</td></tr>';
+            }
+        }
+    </script>
+</body>
+</html>
