@@ -3,20 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>تسجيل وتقارير الحضور والغياب 2026 / 2027</title>
-    <!-- خط Cairo الحديث من Google Fonts -->
+    <title>نظام إدارة الحضور والغياب - مدارس الأحد</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <!-- Font Awesome للأيقونات -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
+    <!-- Firebase SDKs Compat v9 -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #0288d1 0%, #01579b 100%);
-            --report-gradient: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
-            --bg-color: #f0f4f8;
+            --primary: #0288d1;
+            --primary-dark: #01579b;
+            --success: #2e7d32;
+            --danger: #d32f2f;
+            --bg: #f8fafc;
             --card-bg: #ffffff;
-            --text-color: #1e293b;
-            --border-radius: 20px;
+            --text: #1e293b;
         }
 
         * {
@@ -29,312 +33,301 @@
 
         body {
             background: linear-gradient(180deg, #e0f2fe 0%, #fff3e0 100%);
-            color: var(--text-color);
+            color: var(--text);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            padding: 16px 12px;
+            padding: 12px;
         }
 
         .container {
             width: 100%;
-            max-width: 600px; /* تحسين العرض ليكون مثالي لمناظير الموبايل والتابلت */
-            background: rgba(255, 255, 255, 0.95);
+            max-width: 650px;
+            background: rgba(255, 255, 255, 0.96);
             backdrop-filter: blur(10px);
-            border-radius: 24px;
-            padding: 24px 16px;
+            border-radius: 20px;
+            padding: 20px 14px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.08);
             border: 1px solid rgba(255, 255, 255, 0.8);
             text-align: center;
         }
 
-        /* تحسين الشعار للموبايل */
-        .logo-container {
-            margin-bottom: 12px;
-        }
-
         .logo-container img {
-            width: 100px;
-            height: 100px;
+            width: 85px;
+            height: 85px;
             object-fit: contain;
             border-radius: 50%;
-            box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             border: 3px solid #fff;
+            margin-bottom: 6px;
         }
 
         header h1 {
-            color: #01579b;
-            font-size: 1.5rem;
+            color: var(--primary-dark);
+            font-size: 1.35rem;
             font-weight: 900;
-            margin-bottom: 6px;
-            line-height: 1.3;
+            margin-bottom: 4px;
         }
 
         header p {
             color: #e65100;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
             font-weight: 800;
-            margin-bottom: 24px;
+            margin-bottom: 12px;
             background: #fff3e0;
             display: inline-block;
-            padding: 4px 16px;
+            padding: 3px 14px;
             border-radius: 50px;
             border: 1px solid #ffe0b2;
         }
 
-        /* تنسيق الشبكة للموبايل */
-        .stages-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .stages-grid { display: flex; flex-direction: column; gap: 10px; }
 
         .stage-card {
             background: #ffffff;
-            border-radius: 16px;
-            padding: 14px 16px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.03);
+            border-radius: 14px;
+            padding: 12px 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
             border: 1px solid #e2e8f0;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .stage-card:active {
-            transform: scale(0.98);
         }
 
         .stage-title {
-            font-size: 1.15rem;
+            font-size: 1.05rem;
             font-weight: 800;
             color: #0277bd;
             display: flex;
             align-items: center;
-            gap: 10px;
-            min-width: 90px;
-            text-align: right;
-        }
-
-        .stage-title i {
-            font-size: 1.25rem;
-            width: 24px;
-            text-align: center;
-        }
-
-        .stage-buttons {
-            display: flex;
             gap: 8px;
-            flex: 1;
-            justify-content: flex-end;
         }
 
-        .btn-action {
+        .stage-buttons { display: flex; gap: 6px; }
+
+        .btn {
+            border: none;
+            outline: none;
+            cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            padding: 10px 14px;
-            text-decoration: none;
-            border-radius: 12px;
-            font-size: 0.88rem;
-            font-weight: 700;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-            flex: 1;
-            max-width: 110px;
-        }
-
-        .btn-register {
-            background: var(--primary-gradient);
-            color: #ffffff;
-            box-shadow: 0 3px 8px rgba(2, 136, 209, 0.25);
-        }
-
-        .btn-report {
-            background: var(--report-gradient);
-            color: #ffffff;
-            box-shadow: 0 3px 8px rgba(46, 125, 50, 0.25);
-        }
-
-        /* ألوان أيقونات العناوين */
-        .stage-card:nth-child(1) .stage-title i { color: #ff5722; }
-        .stage-card:nth-child(2) .stage-title i { color: #ffb300; }
-        .stage-card:nth-child(3) .stage-title i { color: #7cb342; }
-        .stage-card:nth-child(4) .stage-title i { color: #00acc1; }
-        .stage-card:nth-child(5) .stage-title i { color: #3949ab; }
-        .stage-card:nth-child(6) .stage-title i { color: #8e24aa; }
-        .stage-card:nth-child(7) .stage-title i { color: #d81b60; }
-        .stage-card:nth-child(8) .stage-title i { color: #00897b; }
-
-        footer {
-            margin-top: 24px;
-            color: #64748b;
+            gap: 5px;
+            padding: 8px 12px;
+            border-radius: 10px;
             font-size: 0.85rem;
             font-weight: 700;
+            color: #fff;
+            transition: all 0.2s ease;
         }
 
-        /* تحسينات الإبهام واللمس للشاشات الصغيرة جداً */
-        @media (max-width: 380px) {
-            .stage-card {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 10px;
-                text-align: center;
-            }
-            .stage-title {
-                justify-content: center;
-            }
-            .btn-action {
-                max-width: none;
-            }
+        .btn:active { transform: scale(0.96); }
+        .btn-primary { background: linear-gradient(135deg, #0288d1, #01579b); }
+        .btn-success { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
+        .btn-gray { background: #64748b; }
+        .btn-warning { background: #f57c00; }
+        .btn-danger { background: #d32f2f; }
+
+        .filter-bar {
+            background: #f1f5f9;
+            padding: 10px 14px;
+            border-radius: 12px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
         }
+
+        .filter-bar label { font-size: 0.85rem; font-weight: 800; color: #334155; }
+        .filter-bar input, .filter-bar select {
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.85rem;
+            font-weight: 700;
+            outline: none;
+        }
+
+        .student-list-item {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .student-info { text-align: right; flex: 1; }
+        .student-name { font-weight: 800; font-size: 0.95rem; color: #1e293b; display: block; }
+        .student-stage-badge { font-size: 0.75rem; color: #0288d1; font-weight: 700; }
+
+        .action-buttons { display: flex; gap: 4px; }
+        .btn-icon {
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            border: none;
+            cursor: pointer;
+            color: #fff;
+        }
+
+        .btn-toggle {
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            border: 1.5px solid #cbd5e1;
+            background: #fff;
+            color: #64748b;
+            cursor: pointer;
+        }
+
+        .btn-toggle.active-present { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
+        .btn-toggle.active-absent { background: #ffebee; color: #c62828; border-color: #c62828; }
+
+        .report-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+        .tab-btn {
+            flex: 1; padding: 8px 4px; font-size: 0.8rem; font-weight: 800;
+            border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer;
+        }
+        .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        .table-responsive { overflow-x: auto; border-radius: 10px; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; background: #fff; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #f1f5f9; }
+        th { background: #f8fafc; font-weight: 800; color: #475569; }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+        .online { background: #e8f5e9; color: #2e7d32; }
+        .offline { background: #ffebee; color: #c62828; }
+
+        .search-box {
+            width: 100%;
+            padding: 9px 12px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.9rem;
+            font-weight: 700;
+            outline: none;
+        }
+
+        footer { margin-top: 18px; color: #64748b; font-size: 0.8rem; font-weight: 700; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <!-- الشعار -->
         <div class="logo-container">
-            <img src="https://iili.io/n5dkqZb.md.png" alt="خدمة مدارس الأحد - كنيسة مارمينا والبابا كيرلس">
+            <img src="https://iili.io/n5dkqZb.md.png" alt="خدمة مدارس الأحد">
         </div>
 
         <header>
-            <h1>تسجيل الحضور والتقارير</h1>
+            <h1>نظام الحضور والغياب والتفقد</h1>
             <p><i class="fa-regular fa-calendar-check"></i> العام الدراسي 2026 / 2027</p>
+            <br>
+            <span id="connection-status" class="status-badge online"><i class="fa-solid fa-wifi"></i> أونلاين</span>
         </header>
 
-        <!-- كروت الصفوف متوافقة مع الموبايل -->
-        <div class="stages-grid">
-
-            <!-- تمهيدي -->
-            <div class="stage-card">
-                <div class="stage-title">
-                    <i class="fa-solid fa-shapes"></i> تمهيدي
-                </div>
-                <div class="stage-buttons">
-                    <a href="https://docs.google.com/forms/d/1XaYliPft0JAUp_tub89CjNysxz3rv29vKY5HYxK4Djw/edit" target="_blank" class="btn-action btn-register">
-                        <i class="fa-solid fa-user-check"></i> التسجيل
-                    </a>
-                    <a href="https://docs.google.com/spreadsheets/d/1oYgKkLuVHPPzJ0RozhTCpGrrzGwlEnCiY_ERkYd8hfo/edit?resourcekey=&gid=575788634#gid=575788634" target="_blank" class="btn-action btn-report">
-                        <i class="fa-solid fa-chart-bar"></i> التقرير
-                    </a>
-                </div>
+        <!-- الرئيسية -->
+        <div id="page-main" class="page active">
+            <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+                <button class="btn btn-warning" onclick="showPage('page-upload')" style="flex: 1;">
+                    <i class="fa-solid fa-file-import"></i> رفع / إضافة الأسماء
+                </button>
+                <button class="btn btn-primary" onclick="openManageStudents()" style="flex: 1;">
+                    <i class="fa-solid fa-users-gear"></i> إدارة وبحث المخدومين
+                </button>
             </div>
-
-            <!-- حضانة -->
-            <div class="stage-card">
-                <div class="stage-title">
-                    <i class="fa-solid fa-child-reaching"></i> حضانة
-                </div>
-                <div class="stage-buttons">
-                    <a href="https://docs.google.com/forms/d/1OLREQ9lBoHc48HDvxqLSh6Mahj2Kz0FHY7joFbtUQ_c/edit" target="_blank" class="btn-action btn-register">
-                        <i class="fa-solid fa-user-check"></i> التسجيل
-                    </a>
-                    <a href="https://docs.google.com/spreadsheets/d/1yFkjt87D9ePbRmHiQI63LkTF_sMUOl4YnJs4JbGSLnA/edit?resourcekey=&gid=12880902#gid=12880902" target="_blank" class="btn-action btn-report">
-                        <i class="fa-solid fa-chart-bar"></i> التقرير
-                    </a>
-                </div>
-            </div>
-
-            <!-- أولى -->
-            <div class="stage-card">
-                <div class="stage-title">
-                    <i class="fa-solid fa-1"></i> أولى
-                </div>
-                <div class="stage-buttons">
-                    <a href="https://docs.google.com/forms/d/1PI4vWNtyDixDJTi0vfW4gEMHT1x4D8vUn6v1XVsBaCs/edit" target="_blank" class="btn-action btn-register">
-                        <i class="fa-solid fa-user-check"></i> التسجيل
-                    </a>
-                    <a href="https://docs.google.com/spreadsheets/d/10Q2c7wgfFW51Zw8e1s98YTqonB4sMtoPAlkHfzXFbZA/edit?resourcekey=&gid=282394182#gid=282394182" target="_blank" class="btn-action btn-report">
-                        <i class="fa-solid fa-chart-bar"></i> التقرير
-                    </a>
-                </div>
-            </div>
-
-            <!-- ثانية -->
-            <div class="stage-card">
-                <div class="stage-title">
-                    <i class="fa-solid fa-2"></i> ثانية
-                </div>
-                <div class="stage-buttons">
-                    <a href="https://docs.google.com/forms/d/1o5apX_imMbW6obCiKvKLZyjyz-BTIsDAQo73teNGDzU/edit" target="_blank" class="btn-action btn-register">
-                        <i class="fa-solid fa-user-check"></i> التسجيل
-                    </a>
-                    <a href="https://docs.google.com/forms/d/1o5apX_imMbW6obCiKvKLZyjyz-BTIsDAQo73teNGDzU/edit" target="_blank" class="btn-action btn-report">
-                        <i class="fa-solid fa-chart-bar"></i> التقرير
-                    </a>
-                </div>
-            </div>
-
-            <!-- ثالثة -->
-            <div class="stage-card">
-                <div class="stage-title">
-                    <i class="fa-solid fa-3"></i> ثالثة
-                </div>
-                <div class="stage-buttons">
-                    <a href="https://docs.google.com/forms/d/1kA6etaZ7SXSVKMZuyNjQcmo5P8Hz-_ojlE3AgCt5jhg/edit" target="_blank" class="btn-action btn-register">
-                        <i class="fa-solid fa-user-check"></i> التسجيل
-                    </a>
-                    <a href="https://docs.google.com/spreadsheets/d/1mMdpunOPJvQO8zQN0PUGT7QM4Pj4nZ0r9FMdgR4dBEs/edit?resourcekey=&gid=1242476771#gid=1242476771" target="_blank" class="btn-action btn-report">
-                        <i class="fa-solid fa-chart-bar"></i> التقرير
-                    </a>
-                </div>
-            </div>
-
-            <!-- رابعة -->
-            <div class="stage-card">
-                <div class="stage-title">
-                    <i class="fa-solid fa-4"></i> رابعة
-                </div>
-                <div class="stage-buttons">
-                    <a href="https://docs.google.com/forms/d/1y74G3KR3tLSWjZhFHYrgc-9uowt8KnEsPRvqlgMUoQs/edit?pli=1" target="_blank" class="btn-action btn-register">
-                        <i class="fa-solid fa-user-check"></i> التسجيل
-                    </a>
-                    <a href="https://docs.google.com/spreadsheets/d/1fLp5mrCeM1p26A6jh2lviUQ_E9zcElqsLBqrdLZ1Djk/edit?resourcekey=&gid=228440030#gid=228440030" target="_blank" class="btn-action btn-report">
-                        <i class="fa-solid fa-chart-bar"></i> التقرير
-                    </a>
-                </div>
-            </div>
-
-            <!-- خامسة -->
-            <div class="stage-card">
-                <div class="stage-title">
-                    <i class="fa-solid fa-5"></i> خامسة
-                </div>
-                <div class="stage-buttons">
-                    <a href="https://docs.google.com/forms/d/1r64dbiqUJreWn45NRW38LnVwqdyqkUhZLv-XrUmnb-o/edit" target="_blank" class="btn-action btn-register">
-                        <i class="fa-solid fa-user-check"></i> التسجيل
-                    </a>
-                    <a href="https://docs.google.com/spreadsheets/d/16Pmm_v3PyxF9uA9RV8cNsHyJvNURbZ9MXVSU6Yyl96E/edit?resourcekey=&gid=508133208#gid=508133208" target="_blank" class="btn-action btn-report">
-                        <i class="fa-solid fa-chart-bar"></i> التقرير
-                    </a>
-                </div>
-            </div>
-
-            <!-- سادسة -->
-            <div class="stage-card">
-                <div class="stage-title">
-                    <i class="fa-solid fa-6"></i> سادسة
-                </div>
-                <div class="stage-buttons">
-                    <a href="https://docs.google.com/forms/d/1ha516fWDqizgW4KTKgRRE5ECiL3AhTRm3m1yTaToSv8/edit" target="_blank" class="btn-action btn-register">
-                        <i class="fa-solid fa-user-check"></i> التسجيل
-                    </a>
-                    <a href="https://docs.google.com/spreadsheets/d/" target="_blank" class="btn-action btn-report">
-                        <i class="fa-solid fa-chart-bar"></i> التقرير
-                    </a>
-                </div>
-            </div>
-
+            <div class="stages-grid" id="stages-list"></div>
         </div>
 
-        <footer>
-            <p>خدمة مدارس الأحد - كنيسة مارمينا والبابا كيرلس</p>
-        </footer>
-    </div>
+        <!-- إضافة الأسماء -->
+        <div id="page-upload" class="page">
+            <h3 style="margin-bottom: 10px; color: var(--primary-dark);">إضافة أسماء المخدومين</h3>
+            
+            <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; margin-bottom: 12px; text-align: right;">
+                <label style="font-weight: 800; font-size: 0.85rem;">1. رفع ملف Excel أو CSV (عمود الاسم + المرحلة):</label>
+                <input type="file" id="excel-file" accept=".xlsx, .xls, .csv" style="margin-top: 6px; width: 100%;">
+                <button class="btn btn-success" onclick="importExcel()" style="width: 100%; margin-top: 8px;">
+                    <i class="fa-solid fa-upload"></i> استيراد الملف
+                </button>
+            </div>
 
-</body>
-</html>
+            <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; margin-bottom: 12px; text-align: right;">
+                <label style="font-weight: 800; font-size: 0.85rem;">2. إضافة اسم يدوياً:</label>
+                <input type="text" id="manual-name" placeholder="اسم المخدوم ثلاثي" style="width: 100%; padding: 8px; margin: 6px 0; border-radius: 8px; border: 1px solid #ccc;">
+                <select id="manual-stage" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #ccc; font-weight: 700;">
+                </select>
+                <button class="btn btn-primary" onclick="addManualStudent()" style="width: 100%;">
+                    <i class="fa-solid fa-plus"></i> إضافة للخدمة
+                </button>
+            </div>
+
+            <button class="btn btn-gray" onclick="showPage('page-main')" style="width: 100%;">عودة للرئيسية</button>
+        </div>
+
+        <!-- إدارة وبحث المخدومين (تعديل وحذف) -->
+        <div id="page-manage" class="page">
+            <h3 style="color: var(--primary-dark); margin-bottom: 10px;"><i class="fa-solid fa-users-gear"></i> إدارة وبحث المخدومين</h3>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <input type="text" id="manage-search" class="search-box" style="margin-bottom:0;" placeholder="🔍 ابحث باسم المخدوم..." oninput="filterManageStudents()">
+                <select id="manage-filter-stage" onchange="filterManageStudents()" style="padding: 6px 10px; border-radius: 10px; border: 1px solid #cbd5e1; font-weight: 700;">
+                    <option value="all">كل المراحل</option>
+                </select>
+            </div>
+
+            <div id="manage-students-list" style="max-height: 380px; overflow-y: auto;"></div>
+
+            <div style="margin-top: 14px;">
+                <button class="btn btn-gray" onclick="showPage('page-main')" style="width: 100%;">عودة للرئيسية</button>
+            </div>
+        </div>
+
+        <!-- التسجيل -->
+        <div id="page-register" class="page">
+            <h3 id="register-title" style="color: var(--primary-dark); margin-bottom: 8px;"></h3>
+            
+            <div class="filter-bar">
+                <label><i class="fa-solid fa-calendar-day"></i> التاريخ:</label>
+                <input type="date" id="register-date" onchange="loadAttendanceList()">
+            </div>
+
+            <input type="text" id="search-student" class="search-box" placeholder="🔍 بحث عن اسم مخدوم..." oninput="filterStudents()">
+
+            <div id="students-container"></div>
+
+            <div style="margin-top: 14px; display: flex; gap: 8px;">
+                <button class="btn btn-primary" onclick="showPage('page-main')" style="flex: 1;">حفظ وعودة</button>
+            </div>
+        </div>
+
+        <!-- التقارير -->
+        <div id="page-report" class="page">
+            <h3 id="report-title" style="color: var(--success); margin-bottom: 8px;"></h3>
+
+            <div class="filter-bar">
+                <div style="display: flex; align-items: center; gap: 6px; width: 100%;">
+                    <label>التاريخ المحدد:</label>
+                    <input type="date" id="report-date" onchange="renderReports()" style="flex: 1;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 4px;">
+                    <label>الشهر المحدد:</label>
+    
