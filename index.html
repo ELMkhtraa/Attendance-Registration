@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>نظام إدارة الحضور والغياب - مدارس الأحد</title>
+    
+    <!-- PWA Manifest مدمج داخل الملف -->
+    <link rel="manifest" href='data:application/manifest+json,{"short_name":"مدارس الأحد","name":"نظام الحضور والغياب","icons":[{"src":"https://iili.io/n5dkqZb.md.png","sizes":"192x192","type":"image/png"}],"start_url":"./index.html","background_color":"#e0f2fe","theme_color":"#0288d1","display":"standalone"}'>
+    <meta name="theme-color" content="#0288d1">
+
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -85,6 +90,42 @@
         .page { display: none; }
         .page.active { display: block; }
 
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .page-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--primary-dark);
+        }
+
+        .btn-back-square {
+            background: #ffffff;
+            color: #334155;
+            border: 1.5px solid #cbd5e1;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+        }
+
+        .btn-back-square:active {
+            transform: scale(0.92);
+            background: #f1f5f9;
+        }
+
         .stages-grid { display: flex; flex-direction: column; gap: 10px; }
 
         .stage-card {
@@ -128,6 +169,7 @@
         .btn:active { transform: scale(0.96); }
         .btn-primary { background: linear-gradient(135deg, #0288d1, #01579b); }
         .btn-success { background: linear-gradient(135deg, #2e7d32, #1b5e20); }
+        .btn-purple { background: linear-gradient(135deg, #7b1fa2, #4a148c); }
         .btn-gray { background: #64748b; }
         .btn-warning { background: #f57c00; }
         .btn-danger { background: #d32f2f; }
@@ -168,9 +210,22 @@
 
         .student-info { text-align: right; flex: 1; }
         .student-name { font-weight: 800; font-size: 0.95rem; color: #1e293b; display: block; }
-        .student-stage-badge { font-size: 0.75rem; color: #0288d1; font-weight: 700; }
+        .student-stage-badge { font-size: 0.75rem; color: #0288d1; font-weight: 700; margin-left: 4px; }
+        
+        /* زر تبديل النوع السريع */
+        .btn-gender-quick {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-weight: 800;
+            border: 1.5px solid;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .btn-gender-quick.male { background: #e0f2fe; color: #0288d1; border-color: #0288d1; }
+        .btn-gender-quick.female { background: #fce4ec; color: #c2185b; border-color: #c2185b; }
 
-        .action-buttons { display: flex; gap: 4px; }
+        .action-buttons { display: flex; gap: 4px; align-items: center; }
         .btn-icon {
             padding: 6px 10px;
             border-radius: 8px;
@@ -181,18 +236,18 @@
         }
 
         .btn-toggle {
-            padding: 6px 10px;
+            padding: 8px 16px;
             border-radius: 8px;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             font-weight: 800;
             border: 1.5px solid #cbd5e1;
             background: #fff;
             color: #64748b;
             cursor: pointer;
+            transition: all 0.15s ease;
         }
 
         .btn-toggle.active-present { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
-        .btn-toggle.active-absent { background: #ffebee; color: #c62828; border-color: #c62828; }
 
         .report-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
         .tab-btn {
@@ -247,12 +302,17 @@
 
         <!-- الرئيسية -->
         <div id="page-main" class="page active">
-            <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+            <div style="margin-bottom: 10px; display: flex; gap: 8px;">
                 <button class="btn btn-warning" onclick="showPage('page-upload')" style="flex: 1;">
-                    <i class="fa-solid fa-file-import"></i> رفع / إضافة الأسماء
+                    <i class="fa-solid fa-file-import"></i> رفع / إضافة
                 </button>
                 <button class="btn btn-primary" onclick="openManageStudents()" style="flex: 1;">
-                    <i class="fa-solid fa-users-gear"></i> إدارة وبحث المخدومين
+                    <i class="fa-solid fa-users-gear"></i> إدارة المخدومين
+                </button>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <button class="btn btn-purple" onclick="openGeneralReport()" style="width: 100%;">
+                    <i class="fa-solid fa-chart-pie"></i> التقرير العام الشامل لجميع المراحل
                 </button>
             </div>
             <div class="stages-grid" id="stages-list"></div>
@@ -260,10 +320,15 @@
 
         <!-- إضافة الأسماء -->
         <div id="page-upload" class="page">
-            <h3 style="margin-bottom: 10px; color: var(--primary-dark);">إضافة أسماء المخدومين</h3>
+            <div class="page-header">
+                <h3>إضافة أسماء المخدومين</h3>
+                <button class="btn-back-square" onclick="showPage('page-main')" title="عودة للرئيسية">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
             
             <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; margin-bottom: 12px; text-align: right;">
-                <label style="font-weight: 800; font-size: 0.85rem;">1. رفع ملف Excel أو CSV (عمود الاسم + المرحلة):</label>
+                <label style="font-weight: 800; font-size: 0.85rem;">1. رفع ملف Excel أو CSV (الاسم + المرحلة + النوع):</label>
                 <input type="file" id="excel-file" accept=".xlsx, .xls, .csv" style="margin-top: 6px; width: 100%;">
                 <button class="btn btn-success" onclick="importExcel()" style="width: 100%; margin-top: 8px;">
                     <i class="fa-solid fa-upload"></i> استيراد الملف
@@ -273,19 +338,33 @@
             <div style="background: #f1f5f9; padding: 12px; border-radius: 12px; margin-bottom: 12px; text-align: right;">
                 <label style="font-weight: 800; font-size: 0.85rem;">2. إضافة اسم يدوياً:</label>
                 <input type="text" id="manual-name" placeholder="اسم المخدوم ثلاثي" style="width: 100%; padding: 8px; margin: 6px 0; border-radius: 8px; border: 1px solid #ccc;">
-                <select id="manual-stage" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #ccc; font-weight: 700;">
-                </select>
+                
+                <div style="display:flex; gap:8px; margin-bottom: 8px;">
+                    <select id="manual-stage" style="flex:2; padding: 8px; border-radius: 8px; border: 1px solid #ccc; font-weight: 700;"></select>
+                    <select id="manual-gender" style="flex:1; padding: 8px; border-radius: 8px; border: 1px solid #ccc; font-weight: 700;">
+                        <option value="ذكر">ذكر</option>
+                        <option value="أنثى">أنثى</option>
+                    </select>
+                </div>
+
                 <button class="btn btn-primary" onclick="addManualStudent()" style="width: 100%;">
                     <i class="fa-solid fa-plus"></i> إضافة للخدمة
                 </button>
             </div>
 
-            <button class="btn btn-gray" onclick="showPage('page-main')" style="width: 100%;">عودة للرئيسية</button>
+            <div style="margin-top: 14px;">
+                <button class="btn btn-gray" onclick="showPage('page-main')" style="width: 100%;">عودة للرئيسية</button>
+            </div>
         </div>
 
-        <!-- إدارة وبحث المخدومين (تعديل وحذف) -->
+        <!-- إدارة وبحث المخدومين -->
         <div id="page-manage" class="page">
-            <h3 style="color: var(--primary-dark); margin-bottom: 10px;"><i class="fa-solid fa-users-gear"></i> إدارة وبحث المخدومين</h3>
+            <div class="page-header">
+                <h3><i class="fa-solid fa-users-gear"></i> إدارة وبحث المخدومين</h3>
+                <button class="btn-back-square" onclick="showPage('page-main')" title="عودة للرئيسية">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
             
             <div style="display: flex; gap: 8px; margin-bottom: 10px;">
                 <input type="text" id="manage-search" class="search-box" style="margin-bottom:0;" placeholder="🔍 ابحث باسم المخدوم..." oninput="filterManageStudents()">
@@ -303,7 +382,12 @@
 
         <!-- التسجيل -->
         <div id="page-register" class="page">
-            <h3 id="register-title" style="color: var(--primary-dark); margin-bottom: 8px;"></h3>
+            <div class="page-header">
+                <h3 id="register-title"></h3>
+                <button class="btn-back-square" onclick="showPage('page-main')" title="حفظ وعودة">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
             
             <div class="filter-bar">
                 <label><i class="fa-solid fa-calendar-day"></i> التاريخ:</label>
@@ -319,9 +403,14 @@
             </div>
         </div>
 
-        <!-- التقارير -->
+        <!-- التقارير الفرعية -->
         <div id="page-report" class="page">
-            <h3 id="report-title" style="color: var(--success); margin-bottom: 8px;"></h3>
+            <div class="page-header">
+                <h3 id="report-title" style="color: var(--success);"></h3>
+                <button class="btn-back-square" onclick="showPage('page-main')" title="عودة للرئيسية">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
 
             <div class="filter-bar">
                 <div style="display: flex; align-items: center; gap: 6px; width: 100%;">
@@ -354,13 +443,92 @@
             </div>
         </div>
 
+        <!-- التقرير العام الشامل لجميع المراحل -->
+        <div id="page-general-report" class="page">
+            <div class="page-header">
+                <h3 style="color: #7b1fa2;"><i class="fa-solid fa-chart-pie"></i> التقرير العام الشامل</h3>
+                <button class="btn-back-square" onclick="showPage('page-main')" title="عودة للرئيسية">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <div class="filter-bar">
+                <div style="display: flex; align-items: center; gap: 6px; width: 100%;">
+                    <label>تاريخ التقرير:</label>
+                    <input type="date" id="gen-report-date" onchange="renderGeneralReport()" style="flex: 1;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 4px;">
+                    <label>شهر التقرير:</label>
+                    <input type="month" id="gen-report-month" onchange="renderGeneralReport()" style="flex: 1;">
+                </div>
+            </div>
+
+            <div class="report-tabs">
+                <button class="tab-btn active" id="gen-tab-daily" onclick="switchGenTab('daily')">إحصائيات حضور اليوم</button>
+                <button class="tab-btn" id="gen-tab-monthly" onclick="switchGenTab('monthly')">إحصائيات حضور الشهر (100%)</button>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>المرحلة</th>
+                            <th>إناث (بنات)</th>
+                            <th>ذكور (بنين)</th>
+                            <th>الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gen-report-table-body"></tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 14px;">
+                <button class="btn btn-gray" onclick="showPage('page-main')" style="width: 100%;">عودة للرئيسية</button>
+            </div>
+        </div>
+
         <footer>
             <p>خدمة مدارس الأحد - كنيسة مارمينا والبابا كيرلس</p>
         </footer>
     </div>
 
     <script>
-        // --- إعدادات Firebase ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                const swCode = `
+                    const CACHE_NAME = 'sundayschool-v5';
+                    const ASSETS = [
+                        './',
+                        './index.html',
+                        'https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap',
+                        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+                        'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+                        'https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js',
+                        'https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js'
+                    ];
+
+                    self.addEventListener('install', e => {
+                        e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
+                        self.skipWaiting();
+                    });
+
+                    self.addEventListener('activate', e => {
+                        e.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE_NAME && caches.delete(k)))));
+                        self.clients.claim();
+                    });
+
+                    self.addEventListener('fetch', e => {
+                        e.respondWith(caches.match(e.request).then(res => res || fetch(e.request).catch(() => {})));
+                    });
+                `;
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(swUrl)
+                    .then(() => console.log('تم تفعيل وضع الأوفلاين السريع'))
+                    .catch(err => console.log('خطأ كاش الأوفلاين:', err));
+            });
+        }
+
         const firebaseConfig = {
             apiKey: "AIzaSyC-9N2PqeTZy73xH5EdNQVzSGbNOgyJonw",
             authDomain: "marminaavakyrillos.firebaseapp.com",
@@ -405,6 +573,7 @@
 
         let currentStage = null;
         let activeTab = 'present';
+        let genActiveTab = 'daily';
         let currentStudentsList = [];
         let allStudentsList = [];
 
@@ -419,6 +588,9 @@
             document.getElementById('register-date').value = today;
             document.getElementById('report-date').value = today;
             document.getElementById('report-month').value = currentMonth;
+            
+            document.getElementById('gen-report-date').value = today;
+            document.getElementById('gen-report-month').value = currentMonth;
         };
 
         function renderStagesList() {
@@ -446,7 +618,6 @@
             document.getElementById(pageId).classList.add('active');
         }
 
-        // --- إدارة وبحث وتعديل وحذف المخدومين ---
         async function openManageStudents() {
             showPage('page-manage');
             document.getElementById('manage-search').value = '';
@@ -456,20 +627,35 @@
 
         async function fetchAllStudents() {
             const container = document.getElementById('manage-students-list');
-            container.innerHTML = '<p style="padding:20px;">جاري تحميل جميع الأسماء...</p>';
-
-            try {
-                const snap = await db.collection('students').get();
+            
+            const processSnap = (snap) => {
                 allStudentsList = snap.docs.map(doc => ({
                     docId: doc.id,
                     name: doc.data().name,
-                    stageId: doc.data().stageId
+                    stageId: doc.data().stageId,
+                    gender: doc.data().gender || 'ذكر'
                 })).sort((a,b) => a.name.localeCompare(b.name, 'ar'));
-
                 filterManageStudents();
+            };
+
+            try {
+                const cacheSnap = await db.collection('students').get({ source: 'cache' });
+                if(!cacheSnap.empty) {
+                    processSnap(cacheSnap);
+                } else {
+                    container.innerHTML = '<p style="padding:20px;">جاري تحميل جميع الأسماء...</p>';
+                }
             } catch(e) {
-                console.error(e);
-                container.innerHTML = '<p style="padding:20px; color:#c62828;">تعذر تحميل الأسماء.</p>';
+                container.innerHTML = '<p style="padding:20px;">جاري تحميل جميع الأسماء...</p>';
+            }
+
+            try {
+                const serverSnap = await db.collection('students').get({ source: 'server' });
+                processSnap(serverSnap);
+            } catch(e) {
+                if(allStudentsList.length === 0) {
+                    container.innerHTML = '<p style="padding:20px; color:#c62828;">تعذر تحميل الأسماء.</p>';
+                }
             }
         }
 
@@ -491,6 +677,7 @@
 
             container.innerHTML = filtered.map(s => {
                 const stageObj = stages.find(st => st.id === s.stageId) || { name: s.stageId };
+                const isMale = (s.gender || 'ذكر') === 'ذكر';
                 return `
                     <div class="student-list-item">
                         <div class="student-info">
@@ -498,7 +685,11 @@
                             <span class="student-stage-badge">${stageObj.name}</span>
                         </div>
                         <div class="action-buttons">
-                            <button class="btn-icon btn-warning" onclick="editStudent('${s.docId}', '${s.name}', '${s.stageId}')" title="تعديل">
+                            <!-- زر التبديل السريع بين ذكر وأنثى -->
+                            <button class="btn-gender-quick ${isMale ? 'male' : 'female'}" onclick="quickToggleGender('${s.docId}', '${s.gender || 'ذكر'}')">
+                                ${s.gender || 'ذكر'}
+                            </button>
+                            <button class="btn-icon btn-warning" onclick="editStudent('${s.docId}', '${s.name}', '${s.stageId}', '${s.gender || 'ذكر'}')" title="تعديل الاسم">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
                             <button class="btn-icon btn-danger" onclick="deleteStudent('${s.docId}', '${s.name}')" title="حذف">
@@ -510,23 +701,47 @@
             }).join('');
         }
 
-        // --- تعديل اسم المخدوم ---
-        async function editStudent(docId, oldName, stageId) {
+        // دالة التبديل السريع للنوع مباشرة بضغطة زر
+        async function quickToggleGender(docId, currentGender) {
+            const newGender = currentGender === 'ذكر' ? 'أنثى' : 'ذكر';
+            
+            // تحديث محلي في المصفوفة فوراً للسرعة
+            const studentObj = allStudentsList.find(s => s.docId === docId);
+            if (studentObj) {
+                studentObj.gender = newGender;
+                filterManageStudents();
+            }
+
+            try {
+                await db.collection('students').doc(docId).update({ gender: newGender });
+            } catch(e) {
+                console.error("خطأ تبديل النوع:", e);
+                // تراجع في حالة الخلل
+                if (studentObj) {
+                    studentObj.gender = currentGender;
+                    filterManageStudents();
+                }
+            }
+        }
+
+        async function editStudent(docId, oldName, stageId, oldGender) {
             const newName = prompt('تعديل اسم المخدوم:', oldName);
-            if (!newName || newName.trim() === '' || newName.trim() === oldName) return;
+            if (!newName || newName.trim() === '') return;
 
             const cleanNewName = newName.trim();
             const newDocId = `${stageId}_${cleanNewName}`;
 
             try {
-                // إنشاء المستند الجديد بالاسم المعدل ثم حذف القديم
                 await db.collection('students').doc(newDocId).set({
                     name: cleanNewName,
-                    stageId: stageId
+                    stageId: stageId,
+                    gender: oldGender
                 });
-                await db.collection('students').doc(docId).delete();
+                if(docId !== newDocId) {
+                    await db.collection('students').doc(docId).delete();
+                }
 
-                alert('تم تعديل الاسم بنجاح!');
+                alert('تم التعديل بنجاح!');
                 await fetchAllStudents();
             } catch(e) {
                 console.error(e);
@@ -534,7 +749,6 @@
             }
         }
 
-        // --- حذف مخدوم ---
         async function deleteStudent(docId, name) {
             if (confirm(`هل أنت تأكد من حذف المخدوم (${name}) نهائياً؟`)) {
                 try {
@@ -548,16 +762,17 @@
             }
         }
 
-        // --- إضافة مخدوم يدوياً ---
         async function addManualStudent() {
             const name = document.getElementById('manual-name').value.trim();
             const stageId = document.getElementById('manual-stage').value;
+            const gender = document.getElementById('manual-gender').value;
             if(!name) return alert('برجاء كتابة الاسم');
 
             try {
                 await db.collection('students').doc(`${stageId}_${name}`).set({
                     name: name,
-                    stageId: stageId
+                    stageId: stageId,
+                    gender: gender
                 });
                 alert('تمت إضافة الاسم بنجاح!');
                 document.getElementById('manual-name').value = '';
@@ -567,7 +782,6 @@
             }
         }
 
-        // --- استيراد الإكسيل ---
         async function importExcel() {
             const fileInput = document.getElementById('excel-file');
             if(!fileInput.files.length) return alert('اختر ملف أولاً');
@@ -587,6 +801,12 @@
                     for (const row of rows) {
                         const name = row['الاسم'] || row['اسم'] || row['Name'];
                         const stageName = row['المرحلة'] || row['Stage'];
+                        const rawGender = row['النوع'] || row['جنس'] || row['الجنس'] || row['Gender'] || '';
+
+                        let cleanGender = 'ذكر';
+                        if(String(rawGender).trim().includes('أنثى') || String(rawGender).trim().includes('انثى') || String(rawGender).trim().toLowerCase() === 'f') {
+                            cleanGender = 'أنثى';
+                        }
 
                         if(name && stageName) {
                             const cleanStageStr = String(stageName).trim();
@@ -595,7 +815,11 @@
                             if(matchedStage) {
                                 const cleanName = String(name).trim();
                                 const docRef = db.collection('students').doc(`${matchedStage.id}_${cleanName}`);
-                                batch.set(docRef, { name: cleanName, stageId: matchedStage.id });
+                                batch.set(docRef, { 
+                                    name: cleanName, 
+                                    stageId: matchedStage.id,
+                                    gender: cleanGender
+                                });
                                 opsCount++;
                                 totalAdded++;
 
@@ -622,7 +846,6 @@
             reader.readAsArrayBuffer(fileInput.files[0]);
         }
 
-        // --- تسجيل الحضور والغياب ---
         function openRegister(stageId, stageName) {
             currentStage = stageId;
             document.getElementById('register-title').innerText = 'تسجيل حضور - ' + stageName;
@@ -634,12 +857,35 @@
         async function loadAttendanceList() {
             const date = document.getElementById('register-date').value;
             const container = document.getElementById('students-container');
-            container.innerHTML = '<p style="padding:20px;">جاري تحميل الأسماء...</p>';
+            
+            let cachedStudents = [];
+            let cachedAttendanceMap = {};
+
+            try {
+                const studentsSnapCache = await db.collection('students')
+                    .where('stageId', '==', currentStage)
+                    .get({ source: 'cache' });
+
+                if (!studentsSnapCache.empty) {
+                    cachedStudents = studentsSnapCache.docs.map(doc => doc.data().name).sort((a,b) => a.localeCompare(b, 'ar'));
+                    currentStudentsList = cachedStudents;
+
+                    const attDocCache = await db.collection('attendance').doc(`${currentStage}_${date}`).get({ source: 'cache' });
+                    if (attDocCache.exists) {
+                        cachedAttendanceMap = attDocCache.data();
+                    }
+                    renderStudentListUI(cachedAttendanceMap);
+                } else {
+                    container.innerHTML = '<p style="padding:20px;">جاري تحميل الأسماء...</p>';
+                }
+            } catch (e) {
+                container.innerHTML = '<p style="padding:20px;">جاري تحميل الأسماء...</p>';
+            }
 
             try {
                 const studentsSnap = await db.collection('students')
                     .where('stageId', '==', currentStage)
-                    .get();
+                    .get({ source: 'server' });
 
                 currentStudentsList = studentsSnap.docs.map(doc => doc.data().name).sort((a,b) => a.localeCompare(b, 'ar'));
 
@@ -648,13 +894,14 @@
                     return;
                 }
 
-                const attDoc = await db.collection('attendance').doc(`${currentStage}_${date}`).get();
+                const attDoc = await db.collection('attendance').doc(`${currentStage}_${date}`).get({ source: 'server' });
                 const attendanceMap = attDoc.exists ? attDoc.data() : {};
 
                 renderStudentListUI(attendanceMap);
             } catch(e) {
-                console.error("خطأ تحميل البيانات:", e);
-                container.innerHTML = '<p style="padding:20px; color:#c62828;">تعذر تحميل الأسماء.</p>';
+                if (currentStudentsList.length === 0) {
+                    container.innerHTML = '<p style="padding:20px; color:#c62828;">تعذر تحميل الأسماء.</p>';
+                }
             }
         }
 
@@ -670,16 +917,13 @@
             }
 
             container.innerHTML = filtered.map(student => {
-                const status = attendanceMap[student] || '';
+                const isPresent = attendanceMap[student] === 'حاضر';
                 return `
                     <div class="student-list-item">
                         <span class="student-name" style="text-align:right;">${student}</span>
                         <div class="action-buttons">
-                            <button class="btn-toggle ${status === 'حاضر' ? 'active-present' : ''}" onclick="toggleAttendance('${student}', 'حاضر')">
+                            <button class="btn-toggle ${isPresent ? 'active-present' : ''}" onclick="toggleAttendance(this, '${student}')">
                                 <i class="fa-solid fa-check"></i> حاضر
-                            </button>
-                            <button class="btn-toggle ${status === 'غائب' ? 'active-absent' : ''}" onclick="toggleAttendance('${student}', 'غائب')">
-                                <i class="fa-solid fa-xmark"></i> غائب
                             </button>
                         </div>
                     </div>
@@ -689,33 +933,42 @@
 
         async function filterStudents() {
             const date = document.getElementById('register-date').value;
-            const attDoc = await db.collection('attendance').doc(`${currentStage}_${date}`).get();
-            const attendanceMap = attDoc.exists ? attDoc.data() : {};
+            let attendanceMap = {};
+            try {
+                const attDoc = await db.collection('attendance').doc(`${currentStage}_${date}`).get({ source: 'cache' });
+                if(attDoc.exists) attendanceMap = attDoc.data();
+            } catch(e) {}
             renderStudentListUI(attendanceMap);
         }
 
-        async function toggleAttendance(studentName, status) {
+        async function toggleAttendance(btn, studentName) {
             const date = document.getElementById('register-date').value;
             const docRef = db.collection('attendance').doc(`${currentStage}_${date}`);
             
+            const isCurrentlyPresent = btn.classList.contains('active-present');
+            
+            if (isCurrentlyPresent) {
+                btn.classList.remove('active-present');
+            } else {
+                btn.classList.add('active-present');
+            }
+
             try {
-                const docSnap = await docRef.get();
+                const docSnap = await docRef.get({ source: navigator.onLine ? 'default' : 'cache' });
                 let attendanceMap = docSnap.exists ? docSnap.data() : {};
 
-                if(attendanceMap[studentName] === status) {
+                if (isCurrentlyPresent) {
                     delete attendanceMap[studentName];
                 } else {
-                    attendanceMap[studentName] = status;
+                    attendanceMap[studentName] = 'حاضر';
                 }
 
                 await docRef.set(attendanceMap);
-                renderStudentListUI(attendanceMap);
             } catch(e) {
-                console.error("خطأ أثناء تسجيل الحضور:", e);
+                console.warn("تم حفظ التغيير محلياً وسيرفع مع توفر الاتصال:", e);
             }
         }
 
-        // --- التقارير ---
         function openReport(stageId, stageName) {
             currentStage = stageId;
             document.getElementById('report-title').innerText = 'تقرير - ' + stageName;
@@ -725,7 +978,7 @@
 
         function switchReportTab(tab) {
             activeTab = tab;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#page-report .tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(`tab-${tab}`).classList.add('active');
             renderReports();
         }
@@ -739,33 +992,49 @@
             tbody.innerHTML = '<tr><td colspan="4">جاري تحليل البيانات...</td></tr>';
 
             try {
-                const studentsSnap = await db.collection('students').where('stageId', '==', currentStage).get();
-                const students = studentsSnap.docs.map(doc => doc.data().name).sort((a,b) => a.localeCompare(b, 'ar'));
+                const studentsSnap = await db.collection('students')
+                    .where('stageId', '==', currentStage)
+                    .get({ source: navigator.onLine ? 'default' : 'cache' });
+                
+                const students = studentsSnap.docs.map(doc => ({
+                    name: doc.data().name,
+                    gender: doc.data().gender || 'ذكر'
+                })).sort((a,b) => a.name.localeCompare(b.name, 'ar'));
 
-                const attDoc = await db.collection('attendance').doc(`${currentStage}_${date}`).get();
+                const attDoc = await db.collection('attendance').doc(`${currentStage}_${date}`).get({ source: navigator.onLine ? 'default' : 'cache' });
                 const attendanceMap = attDoc.exists ? attDoc.data() : {};
 
                 if(activeTab === 'present') {
-                    thead.innerHTML = '<th>م</th><th>اسم الحاضر</th><th>التاريخ</th><th>الحالة</th>';
-                    const presentList = students.filter(s => attendanceMap[s] === 'حاضر');
+                    thead.innerHTML = '<th>م</th><th>الاسم</th><th>النوع</th><th>الحالة</th>';
+                    const presentList = students.filter(s => attendanceMap[s.name] === 'حاضر');
 
                     tbody.innerHTML = presentList.length ? presentList.map((s, idx) => `
-                        <tr><td>${idx+1}</td><td><strong>${s}</strong></td><td>${date}</td><td><span style="color:#2e7d32; font-weight:800;">حاضر</span></td></tr>
+                        <tr>
+                            <td>${idx+1}</td>
+                            <td><strong>${s.name}</strong></td>
+                            <td><span class="btn-gender-quick ${s.gender === 'ذكر' ? 'male' : 'female'}" style="cursor:default;">${s.gender}</span></td>
+                            <td><span style="color:#2e7d32; font-weight:800;">حاضر</span></td>
+                        </tr>
                     `).join('') : '<tr><td colspan="4">لا يوجد مخدومين حاضرين في هذا التاريخ</td></tr>';
 
                 } else if(activeTab === 'absent') {
-                    thead.innerHTML = '<th>م</th><th>اسم الغائب</th><th>التاريخ</th><th>الحالة</th>';
-                    const absentList = students.filter(s => attendanceMap[s] === 'غائب' || !attendanceMap[s]);
+                    thead.innerHTML = '<th>م</th><th>الاسم</th><th>النوع</th><th>الحالة</th>';
+                    const absentList = students.filter(s => attendanceMap[s.name] !== 'حاضر');
 
                     tbody.innerHTML = absentList.length ? absentList.map((s, idx) => `
-                        <tr><td>${idx+1}</td><td><strong>${s}</strong></td><td>${date}</td><td><span style="color:#c62828; font-weight:800;">غائب</span></td></tr>
+                        <tr>
+                            <td>${idx+1}</td>
+                            <td><strong>${s.name}</strong></td>
+                            <td><span class="btn-gender-quick ${s.gender === 'ذكر' ? 'male' : 'female'}" style="cursor:default;">${s.gender}</span></td>
+                            <td><span style="color:#c62828; font-weight:800;">غائب</span></td>
+                        </tr>
                     `).join('') : '<tr><td colspan="4">لا يوجد غائبين في هذا التاريخ</td></tr>';
 
                 } else if(activeTab === 'monthly') {
-                    thead.innerHTML = '<th>م</th><th>اسم المخدوم</th><th>نسبة الحضور</th>';
+                    thead.innerHTML = '<th>م</th><th>الاسم</th><th>النوع</th><th>نسبة الحضور</th>';
                     
                     let monthlyCounts = {};
-                    students.forEach(s => monthlyCounts[s] = 0);
+                    students.forEach(s => monthlyCounts[s.name] = 0);
 
                     const startPrefix = `${currentStage}_${month}`;
                     const endPrefix = `${currentStage}_${month}\uf8ff`;
@@ -773,37 +1042,164 @@
                     const snapshot = await db.collection('attendance')
                         .where(firebase.firestore.FieldPath.documentId(), '>=', startPrefix)
                         .where(firebase.firestore.FieldPath.documentId(), '<=', endPrefix)
-                        .get();
+                        .get({ source: navigator.onLine ? 'default' : 'cache' });
 
                     let totalRegisteredFridays = snapshot.size;
 
                     if(totalRegisteredFridays === 0) {
-                        tbody.innerHTML = '<tr><td colspan="3">لم يتم تسجيل أي يوم في هذا الشهر حتى الآن</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="4">لم يتم تسجيل أي يوم في هذا الشهر حتى الآن</td></tr>';
                         return;
                     }
 
                     snapshot.forEach(doc => {
                         const dayData = doc.data();
                         students.forEach(s => {
-                            if(dayData[s] === 'حاضر') {
-                                monthlyCounts[s] = (monthlyCounts[s] || 0) + 1;
+                            if(dayData[s.name] === 'حاضر') {
+                                monthlyCounts[s.name] = (monthlyCounts[s.name] || 0) + 1;
                             }
                         });
                     });
 
-                    const fullAttendanceStudents = students.filter(s => monthlyCounts[s] === totalRegisteredFridays);
+                    const fullAttendanceStudents = students.filter(s => monthlyCounts[s.name] === totalRegisteredFridays);
 
                     tbody.innerHTML = fullAttendanceStudents.length ? fullAttendanceStudents.map((s, idx) => `
                         <tr>
                             <td>${idx+1}</td>
-                            <td><strong>${s}</strong></td>
+                            <td><strong>${s.name}</strong></td>
+                            <td><span class="btn-gender-quick ${s.gender === 'ذكر' ? 'male' : 'female'}" style="cursor:default;">${s.gender}</span></td>
                             <td><span style="background:#e8f5e9; color:#2e7d32; padding:4px 12px; border-radius:12px; font-weight:800;">حضر كامل الجمع (${totalRegisteredFridays} من ${totalRegisteredFridays})</span></td>
                         </tr>
-                    `).join('') : `<tr><td colspan="3">لا يوجد مخدومين حضروا كامل الجمع في هذا الشهر (${totalRegisteredFridays} جمع)</td></tr>`;
+                    `).join('') : `<tr><td colspan="4">لا يوجد مخدومين حضروا كامل الجمع في هذا الشهر (${totalRegisteredFridays} جمع)</td></tr>`;
                 }
             } catch(e) {
                 console.error("خطأ التقارير:", e);
                 tbody.innerHTML = '<tr><td colspan="4" style="color:#c62828;">حدث خطأ أثناء تحميل التقرير</td></tr>';
+            }
+        }
+
+        function openGeneralReport() {
+            showPage('page-general-report');
+            renderGeneralReport();
+        }
+
+        function switchGenTab(tab) {
+            genActiveTab = tab;
+            document.querySelectorAll('#page-general-report .tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`gen-tab-${tab}`).classList.add('active');
+            renderGeneralReport();
+        }
+
+        async function renderGeneralReport() {
+            const date = document.getElementById('gen-report-date').value;
+            const month = document.getElementById('gen-report-month').value;
+            const tbody = document.getElementById('gen-report-table-body');
+
+            tbody.innerHTML = '<tr><td colspan="4">جاري تجميع إحصائيات المراحل...</td></tr>';
+
+            try {
+                const allStudentsSnap = await db.collection('students').get({ source: navigator.onLine ? 'default' : 'cache' });
+                const allStudents = allStudentsSnap.docs.map(doc => doc.data());
+
+                let htmlRows = '';
+                let totalFemalesSum = 0;
+                let totalMalesSum = 0;
+
+                if (genActiveTab === 'daily') {
+                    for (const stage of stages) {
+                        const stageStudents = allStudents.filter(s => s.stageId === stage.id);
+                        
+                        const attDoc = await db.collection('attendance').doc(`${stage.id}_${date}`).get({ source: navigator.onLine ? 'default' : 'cache' });
+                        const attendanceMap = attDoc.exists ? attDoc.data() : {};
+
+                        let femalesCount = 0;
+                        let malesCount = 0;
+
+                        stageStudents.forEach(student => {
+                            if (attendanceMap[student.name] === 'حاضر') {
+                                if (student.gender === 'أنثى') femalesCount++;
+                                else malesCount++;
+                            }
+                        });
+
+                        totalFemalesSum += femalesCount;
+                        totalMalesSum += malesCount;
+
+                        htmlRows += `
+                            <tr>
+                                <td><strong>${stage.name}</strong></td>
+                                <td style="color:#c2185b; font-weight:800;">${femalesCount}</td>
+                                <td style="color:#0288d1; font-weight:800;">${malesCount}</td>
+                                <td><span style="background:#f1f5f9; padding:3px 10px; border-radius:8px; font-weight:900;">${femalesCount + malesCount}</span></td>
+                            </tr>
+                        `;
+                    }
+                } else if (genActiveTab === 'monthly') {
+                    for (const stage of stages) {
+                        const stageStudents = allStudents.filter(s => s.stageId === stage.id);
+
+                        const startPrefix = `${stage.id}_${month}`;
+                        const endPrefix = `${stage.id}_${month}\uf8ff`;
+
+                        const snapshot = await db.collection('attendance')
+                            .where(firebase.firestore.FieldPath.documentId(), '>=', startPrefix)
+                            .where(firebase.firestore.FieldPath.documentId(), '<=', endPrefix)
+                            .get({ source: navigator.onLine ? 'default' : 'cache' });
+
+                        let totalFridays = snapshot.size;
+                        let monthlyCounts = {};
+                        stageStudents.forEach(s => monthlyCounts[s.name] = 0);
+
+                        if (totalFridays > 0) {
+                            snapshot.forEach(doc => {
+                                const dayData = doc.data();
+                                stageStudents.forEach(s => {
+                                    if(dayData[s.name] === 'حاضر') {
+                                        monthlyCounts[s.name] = (monthlyCounts[s.name] || 0) + 1;
+                                    }
+                                });
+                            });
+                        }
+
+                        let femalesCount = 0;
+                        let malesCount = 0;
+
+                        if (totalFridays > 0) {
+                            stageStudents.forEach(student => {
+                                if (monthlyCounts[student.name] === totalFridays) {
+                                    if (student.gender === 'أنثى') femalesCount++;
+                                    else malesCount++;
+                                }
+                            });
+                        }
+
+                        totalFemalesSum += femalesCount;
+                        totalMalesSum += malesCount;
+
+                        htmlRows += `
+                            <tr>
+                                <td><strong>${stage.name}</strong></td>
+                                <td style="color:#c2185b; font-weight:800;">${femalesCount}</td>
+                                <td style="color:#0288d1; font-weight:800;">${malesCount}</td>
+                                <td><span style="background:#e8f5e9; color:#2e7d32; padding:3px 10px; border-radius:8px; font-weight:900;">${femalesCount + malesCount}</span></td>
+                            </tr>
+                        `;
+                    }
+                }
+
+                htmlRows += `
+                    <tr style="background:#f1f5f9; border-top:2px solid #cbd5e1;">
+                        <td><strong>الإجمالي العام</strong></td>
+                        <td style="color:#c2185b; font-size:1rem; font-weight:900;">${totalFemalesSum}</td>
+                        <td style="color:#0288d1; font-size:1rem; font-weight:900;">${totalMalesSum}</td>
+                        <td><span style="background:#0288d1; color:#fff; padding:4px 12px; border-radius:10px; font-weight:900;">${totalFemalesSum + totalMalesSum}</span></td>
+                    </tr>
+                `;
+
+                tbody.innerHTML = htmlRows;
+
+            } catch(e) {
+                console.error("خطأ التقرير العام:", e);
+                tbody.innerHTML = '<tr><td colspan="4" style="color:#c62828;">حدث خطأ أثناء تحميل التقرير العام</td></tr>';
             }
         }
     </script>
