@@ -384,7 +384,16 @@
         th, td { padding: 10px; text-align: center; border-bottom: 1px solid #f1f5f9; }
         th { background: #f8fafc; font-weight: 800; color: #475569; }
 
-        /* حاوية الرسوم البيانية */
+        /* شارة اليوم للتقرير الشامل */
+        .day-badge {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 3px 6px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 800;
+        }
+
         .chart-box-container { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
         .stage-chart-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.02); }
         .stage-chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-weight: 800; font-size: 0.95rem; color: var(--primary-dark); }
@@ -395,7 +404,6 @@
         .chart-bar-fill { background: var(--primary); height: 100%; border-radius: 8px; transition: width 0.4s ease; }
         .chart-bar-value { min-width: 30px; text-align: left; font-weight: 900; color: #1e293b; }
 
-        /* نافذة التنبيهات الفورية (Toast Notification) */
         #custom-toast {
             position: fixed;
             bottom: 20px;
@@ -437,12 +445,12 @@
         .check-badge {
             background: #e8f5e9;
             color: #2e7d32;
-            padding: 2px 8px;
-            border-radius: 12px;
+            padding: 2px 6px;
+            border-radius: 8px;
             font-size: 0.85rem;
             font-weight: 900;
             display: inline-block;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
         }
 
         footer { margin-top: auto; padding-top: 16px; color: #64748b; font-size: 0.8rem; font-weight: 700; text-align: center; }
@@ -451,8 +459,6 @@
 <body>
 
     <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
-
-    <!-- نافذة التنبيه الفوري على الشاشة -->
     <div id="custom-toast"></div>
 
     <div class="drawer" id="drawer">
@@ -488,7 +494,7 @@
         </header>
 
         <div class="container">
-            <!-- الصفحة الرئيسية -->
+            <!-- الرئيسية -->
             <div id="page-main" class="page active">
                 <div style="margin-bottom:12px; text-align:right;">
                     <h3 style="font-size:1.05rem; font-weight:800; color:#334155; margin-bottom:8px;">اختر المرحلة لتسجيل الحضور:</h3>
@@ -529,7 +535,7 @@
                 </div>
             </div>
 
-            <!-- إدارة وبحث المخدومين متكامل الشاشة -->
+            <!-- إدارة المخدومين -->
             <div id="page-manage" class="page" style="display:none; flex-direction:column;">
                 <div class="page-header">
                     <h3><i class="fa-solid fa-users-gear"></i> إدارة بيانات المخدومين</h3>
@@ -546,7 +552,7 @@
                 <div id="manage-students-list"></div>
             </div>
 
-            <!-- قائمة اختيار المراحل للتقارير -->
+            <!-- تقارير المراحل -->
             <div id="page-stages-report" class="page">
                 <div class="page-header">
                     <h3>تقارير المراحل</h3>
@@ -564,7 +570,7 @@
                 
                 <div class="filter-bar">
                     <label><i class="fa-solid fa-calendar-day"></i> التاريخ (يوم الجمعة فقط):</label>
-                    <input type="date" id="register-date" onchange="loadAttendanceList()">
+                    <input type="date" id="register-date" onchange="onRegisterDateChange()">
                 </div>
 
                 <div id="register-warning" class="warning-banner">
@@ -576,7 +582,7 @@
                 <div id="students-container"></div>
             </div>
 
-            <!-- التقارير الفرعية للمرحلة -->
+            <!-- التقارير الفرعية -->
             <div id="page-report" class="page">
                 <div class="page-header">
                     <h3 id="report-title" style="color: var(--primary-dark);"></h3>
@@ -610,7 +616,7 @@
                 </div>
             </div>
 
-            <!-- التقرير العام الشامل لجميع المراحل -->
+            <!-- التقرير العام والشامل -->
             <div id="page-general-report" class="page">
                 <div class="page-header">
                     <h3 style="color: var(--primary-dark);"><i class="fa-solid fa-chart-pie"></i> التقرير العام الشامل</h3>
@@ -640,7 +646,6 @@
                     <select id="gen-report-stage-select" onchange="renderGeneralReport()" style="width:100%; margin-top:4px; padding:6px; border-radius:8px; border:1px solid #cbd5e1; font-weight:700;"></select>
                 </div>
 
-                <!-- جدول التقرير العام -->
                 <div id="gen-table-wrapper" class="table-responsive">
                     <table>
                         <thead>
@@ -655,7 +660,6 @@
                     </table>
                 </div>
 
-                <!-- حاوية الرسوم البيانية لجميع المراحل أسبوعياً -->
                 <div id="gen-charts-wrapper" style="display:none;"></div>
             </div>
 
@@ -700,6 +704,9 @@
         let currentStudentsList = [];
         let allStudentsList = [];
 
+        // تخزين حالة المصادقة لكل تاريخ ومرحلة
+        let authenticatedDatesCache = {};
+
         function normalizeArabicText(text) {
             if (!text) return '';
             return String(text)
@@ -711,7 +718,6 @@
                 .trim();
         }
 
-        // توليد كلمة المرور الحالية (الساعة 24 + يوم الشهر مثل 1431)
         function generateCurrentPassword() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -719,7 +725,6 @@
             return `${hours}${day}`;
         }
 
-        // --- نظام إشعارات الموبايل المزدوج (شاشة داخلية + إشعار هاتف) ---
         function requestNotificationPermission() {
             if (!("Notification" in window)) {
                 showToast("⚠️ متصفحك لا يدعم الإشعارات الفورية.");
@@ -745,10 +750,7 @@
         }
 
         function sendAppNotification(title, bodyText) {
-            // إظهار تنبيه مرئي داخل التطبيق مباشرة (مضمون 100%)
             showToast(`${title}: ${bodyText}`);
-
-            // إرسال إشعار للمتصفح إذا كان مسموحاً
             if ("Notification" in window && Notification.permission === "granted") {
                 try {
                     new Notification(title, { body: bodyText, icon: 'https://iili.io/n5dkqZb.md.png' });
@@ -1133,6 +1135,60 @@
             loadAttendanceList();
         }
 
+        // عند تغيير أو اختيار التاريخ: فحص هل اليوم يحتوي على سجلات حضور مسبقة، وإذا وجد نطلب كلمة المرور مرة واحدة فوراً
+        async function onRegisterDateChange() {
+            const dateEl = document.getElementById('register-date');
+            if(!dateEl) return;
+            const date = dateEl.value;
+
+            const dayOfWeek = new Date(date).getDay();
+            if (dayOfWeek !== 5) {
+                loadAttendanceList();
+                return;
+            }
+
+            const authKey = `${currentStage}_${date}`;
+            
+            // إذا لم يتم عمل المصادقة لهذا التاريخ بعد في هذه الجلسة
+            if (!authenticatedDatesCache[authKey]) {
+                try {
+                    const docRef = db.collection('attendance').doc(`${currentStage}_${date}`);
+                    const docSnap = await docRef.get({ source: navigator.onLine ? 'default' : 'cache' });
+                    
+                    if (docSnap.exists) {
+                        const attendanceMap = docSnap.data();
+                        const registeredCount = Object.values(attendanceMap).filter(val => val === 'حاضر').length;
+
+                        if (registeredCount >= 1) {
+                            const inputPassword = prompt(`⚠️ تم تسجيل حضور مسبقاً لهذا التاريخ (${date}).\nبرجاء إدخال كلمة المرور لفتح صلاحية التعديل:` );
+                            
+                            if (inputPassword === null) {
+                                // إذا ألغى الإدخال، نرجع لتاريخ اليوم الافتراضي أو نمنع العرض
+                                return;
+                            }
+
+                            const expectedPassword = generateCurrentPassword();
+
+                            if (inputPassword.trim() !== expectedPassword) {
+                                alert('كلمة المرور غير صحيحة!');
+                                // إعادة تعيين تاريخ الحقل لتاريخ اليوم لمنع الدخول بدون باسورد
+                                dateEl.value = new Date().toISOString().split('T')[0];
+                                loadAttendanceList();
+                                return;
+                            }
+
+                            // حفظ المصادقة لهذا التاريخ والمرحلة
+                            authenticatedDatesCache[authKey] = true;
+                        }
+                    }
+                } catch(e) {
+                    console.error(e);
+                }
+            }
+
+            loadAttendanceList();
+        }
+
         async function loadAttendanceList() {
             const dateEl = document.getElementById('register-date');
             if(!dateEl) return;
@@ -1237,7 +1293,7 @@
             renderStudentListUI(attendanceMap);
         }
 
-        // دالة التسجيل مع فحص الحماية + إرسال التنبيه الفوري بدقة
+        // تم إزالة شاشة الباسورد من هنا تماماً، وأصبح الضغط على اسم الطفل يسجل ويحفظ فوراً
         async function toggleAttendance(btn, studentName) {
             const dateEl = document.getElementById('register-date');
             if(!dateEl) return;
@@ -1256,21 +1312,7 @@
                 
                 const registeredCount = Object.values(attendanceMap).filter(val => val === 'حاضر').length;
                 const stageObj = stages.find(s => s.id === currentStage) || { name: currentStage };
-                let isEditAction = false;
-
-                if (registeredCount >= 1) {
-                    isEditAction = true;
-                    const inputPassword = prompt('تم تسجيل الحضور سابقاً لهذا اليوم.\nبرجاء ادخال كلمة المرور للتعديل:');
-                    
-                    if (inputPassword === null) return;
-
-                    const expectedPassword = generateCurrentPassword();
-
-                    if (inputPassword.trim() !== expectedPassword) {
-                        alert('كلمة المرور غير صحيحة!\nوللتمكن من كلمة المرور بالرجاء الاتصال بالدعم.');
-                        return;
-                    }
-                }
+                let isEditAction = registeredCount >= 1;
 
                 const isCurrentlyPresent = btn.classList.contains('active-present');
                 if (isCurrentlyPresent) {
@@ -1283,7 +1325,6 @@
 
                 await docRef.set(attendanceMap);
 
-                // إرسال الإشعار الفوري للشاشة والهاتف بنجاح
                 if (isEditAction) {
                     sendAppNotification("⚠️ تعديل حضور", `مرحلة ${stageObj.name} قامت بعمل تعديل في الحضور ليوم ${date}`);
                 } else {
@@ -1446,7 +1487,7 @@
                 if(chartsWrapper) chartsWrapper.style.display = 'none';
             } else if (tab === 'charts') {
                 if(filterBox) filterBox.style.display = 'none';
-                if(tableWrapper) tableWrapper.style.display = 'none';
+                if(tableWrapper) filterBox.style.display = 'none';
                 if(chartsWrapper) chartsWrapper.style.display = 'block';
             } else {
                 if(filterBox) filterBox.style.display = 'none';
@@ -1593,47 +1634,69 @@
                     tbody.innerHTML = htmlRows;
 
                 } else if (genActiveTab === 'checks') {
-                    thead.innerHTML = `<tr><th>م</th><th>اسم المخدوم</th><th>النوع</th><th>مرات الحضور (الشهر)</th></tr>`;
                     const selectedStageId = document.getElementById('gen-report-stage-select').value;
                     const stageStudents = allStudents.filter(s => s.stageId === selectedStageId);
 
-                    if (stageStudents.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="4">لا يوجد مخدومين في هذه المرحلة</td></tr>';
-                        return;
-                    }
-
-                    let stageDocs = [];
+                    let fridayDatesSet = new Set();
                     allAttSnap.forEach(doc => {
                         if (doc.id.startsWith(selectedStageId + '_' + month)) {
                             const datePart = doc.id.replace(`${selectedStageId}_`, '');
                             if (new Date(datePart).getDay() === 5) {
-                                stageDocs.push(doc.data());
+                                fridayDatesSet.add(datePart);
                             }
                         }
                     });
 
-                    let studentAttendanceStats = stageStudents.map(student => {
-                        let count = 0;
-                        stageDocs.forEach(dayData => {
-                            if (dayData[student.name] === 'حاضر') count++;
+                    let sortedFridays = Array.from(fridayDatesSet).sort();
+
+                    let daysHeadersHtml = sortedFridays.map(d => {
+                        let dayNum = d.slice(8, 10);
+                        return `<th><span class="day-badge" title="${d}">${dayNum}</span></th>`;
+                    }).join('');
+
+                    thead.innerHTML = `<tr><th>م</th><th>اسم المخدوم</th><th>النوع</th>${daysHeadersHtml}<th>المجموع</th></tr>`;
+
+                    if (stageStudents.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5">لا يوجد مخدومين في هذه المرحلة</td></tr>';
+                        return;
+                    }
+
+                    let fridayAttendanceMaps = {};
+                    sortedFridays.forEach(d => {
+                        const attDoc = allAttSnap.docs.find(doc => doc.id === `${selectedStageId}_${d}`);
+                        fridayAttendanceMaps[d] = attDoc ? attDoc.data() : {};
+                    });
+
+                    let studentStats = stageStudents.map(student => {
+                        let totalCount = 0;
+                        let daysChecks = sortedFridays.map(d => {
+                            let map = fridayAttendanceMaps[d];
+                            if (map[student.name] === 'حاضر') {
+                                totalCount++;
+                                return '✔️';
+                            } else {
+                                return '❌';
+                            }
                         });
                         return {
                             name: student.name,
                             gender: student.gender || 'ذكر',
-                            count: count
+                            daysChecks: daysChecks,
+                            total: totalCount
                         };
                     });
 
-                    studentAttendanceStats.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ar'));
+                    studentStats.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'ar'));
 
-                    tbody.innerHTML = studentAttendanceStats.map((st, idx) => {
-                        let checks = st.count > 0 ? '✔️'.repeat(st.count) : '❌';
+                    tbody.innerHTML = studentStats.map((st, idx) => {
+                        let checksTds = st.daysChecks.map(c => `<td><span class="check-badge" style="background:${c==='✔️'?'#e8f5e9':'#ffebee'}; color:${c==='✔️'?'#2e7d32':'#c62828'}">${c}</span></td>`).join('');
                         return `
                             <tr>
                                 <td>${idx + 1}</td>
                                 <td style="text-align:right;"><strong>${st.name}</strong></td>
                                 <td><span class="btn-gender-quick ${st.gender === 'ذكر' ? 'male' : 'female'}" style="cursor:default;">${st.gender}</span></td>
-                                <td><span class="check-badge">${checks} (${st.count})</span></td>
+                                ${checksTds}
+                                <td><strong style="color:var(--primary);">${st.total}</strong></td>
                             </tr>
                         `;
                     }).join('');
@@ -1655,7 +1718,7 @@
                     let sortedFridays = Object.keys(fridayDatesMap).sort();
 
                     if (sortedFridays.length === 0) {
-                        chartsHtml += `<div style="text-align:center; padding:20px; color:#64748b; background:#fff; border-radius:12px;">لا توجد أيام جمعة مسجلة في هذا الشهر للرسم البياني.</div>`;
+                        chartsHtml += `<div style="text-align:center; padding:20px; color:#64748b; background:#fff; border-radius:12px;">لا توجد أيام جمعة مسجلة في الشهر للرسم البياني.</div>`;
                     } else {
                         for (const stage of stages) {
                             const stageStudents = allStudents.filter(s => s.stageId === stage.id);
@@ -1690,7 +1753,7 @@
                                         <span><i class="fa-solid ${stage.icon}" style="color:${stage.color}"></i> مرحلة ${stage.name}</span>
                                         <span style="font-size:0.75rem; color:#64748b; font-weight:700;">إجمالي المخدومين: ${stageStudents.length}</span>
                                     </div>
-                                    <div class="chart-bars_wrapper" class="chart-bars-wrapper">
+                                    <div class="chart-bars-wrapper">
                                         ${stageBarsHtml}
                                     </div>
                                 </div>
