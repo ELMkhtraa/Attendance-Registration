@@ -384,7 +384,6 @@
         th, td { padding: 10px; text-align: center; border-bottom: 1px solid #f1f5f9; }
         th { background: #f8fafc; font-weight: 800; color: #475569; }
 
-        /* شارة اليوم للتقرير الشامل */
         .day-badge {
             background: #e0f2fe;
             color: #0369a1;
@@ -580,6 +579,11 @@
                 <input type="text" id="search-student" class="search-box" placeholder="🔍 بحث عن اسم مخدوم..." oninput="filterStudents()">
 
                 <div id="students-container"></div>
+
+                <!-- زر الحفظ من أسفل مع الرجوع للصفحة الرئيسية -->
+                <button class="btn btn-primary" onclick="saveAttendanceManual()" style="width: 100%; margin-top: 14px; margin-bottom: 14px; padding: 12px; font-size: 1rem;">
+                    <i class="fa-solid fa-floppy-disk"></i> حفظ والعودة للرئيسية
+                </button>
             </div>
 
             <!-- التقارير الفرعية -->
@@ -704,7 +708,6 @@
         let currentStudentsList = [];
         let allStudentsList = [];
 
-        // تخزين حالة المصادقة لكل تاريخ ومرحلة
         let authenticatedDatesCache = {};
 
         function normalizeArabicText(text) {
@@ -1135,7 +1138,6 @@
             loadAttendanceList();
         }
 
-        // عند تغيير أو اختيار التاريخ: فحص هل اليوم يحتوي على سجلات حضور مسبقة، وإذا وجد نطلب كلمة المرور مرة واحدة فوراً
         async function onRegisterDateChange() {
             const dateEl = document.getElementById('register-date');
             if(!dateEl) return;
@@ -1149,7 +1151,6 @@
 
             const authKey = `${currentStage}_${date}`;
             
-            // إذا لم يتم عمل المصادقة لهذا التاريخ بعد في هذه الجلسة
             if (!authenticatedDatesCache[authKey]) {
                 try {
                     const docRef = db.collection('attendance').doc(`${currentStage}_${date}`);
@@ -1163,7 +1164,6 @@
                             const inputPassword = prompt(`⚠️ تم تسجيل حضور مسبقاً لهذا التاريخ (${date}).\nبرجاء إدخال كلمة المرور لفتح صلاحية التعديل:` );
                             
                             if (inputPassword === null) {
-                                // إذا ألغى الإدخال، نرجع لتاريخ اليوم الافتراضي أو نمنع العرض
                                 return;
                             }
 
@@ -1171,13 +1171,11 @@
 
                             if (inputPassword.trim() !== expectedPassword) {
                                 alert('كلمة المرور غير صحيحة!');
-                                // إعادة تعيين تاريخ الحقل لتاريخ اليوم لمنع الدخول بدون باسورد
                                 dateEl.value = new Date().toISOString().split('T')[0];
                                 loadAttendanceList();
                                 return;
                             }
 
-                            // حفظ المصادقة لهذا التاريخ والمرحلة
                             authenticatedDatesCache[authKey] = true;
                         }
                     }
@@ -1293,7 +1291,6 @@
             renderStudentListUI(attendanceMap);
         }
 
-        // تم إزالة شاشة الباسورد من هنا تماماً، وأصبح الضغط على اسم الطفل يسجل ويحفظ فوراً
         async function toggleAttendance(btn, studentName) {
             const dateEl = document.getElementById('register-date');
             if(!dateEl) return;
@@ -1304,35 +1301,60 @@
                 return;
             }
 
+            const isCurrentlyPresent = btn.classList.contains('active-present');
+            if (isCurrentlyPresent) {
+                btn.classList.remove('active-present');
+            } else {
+                btn.classList.add('active-present');
+            }
+        }
+
+        async function saveAttendanceManual() {
+            const dateEl = document.getElementById('register-date');
+            if(!dateEl) return;
+            const date = dateEl.value;
+
+            if (new Date(date).getDay() !== 5) {
+                alert('عذراً، لا يمكن حفظ حضور في غير أيام الجمعة!');
+                return;
+            }
+
             const docRef = db.collection('attendance').doc(`${currentStage}_${date}`);
             
             try {
                 const docSnap = await docRef.get({ source: navigator.onLine ? 'default' : 'cache' });
                 let attendanceMap = docSnap.exists ? docSnap.data() : {};
-                
                 const registeredCount = Object.values(attendanceMap).filter(val => val === 'حاضر').length;
-                const stageObj = stages.find(s => s.id === currentStage) || { name: currentStage };
                 let isEditAction = registeredCount >= 1;
 
-                const isCurrentlyPresent = btn.classList.contains('active-present');
-                if (isCurrentlyPresent) {
-                    btn.classList.remove('active-present');
-                    delete attendanceMap[studentName];
-                } else {
-                    btn.classList.add('active-present');
-                    attendanceMap[studentName] = 'حاضر';
-                }
+                const toggleButtons = document.querySelectorAll('.btn-toggle');
+                toggleButtons.forEach(btn => {
+                    const studentName = btn.closest('.student-list-item').querySelector('.student-name').innerText;
+                    if (btn.classList.contains('active-present')) {
+                        attendanceMap[studentName] = 'حاضر';
+                    } else {
+                        delete attendanceMap[studentName];
+                    }
+                });
 
                 await docRef.set(attendanceMap);
+                const stageObj = stages.find(s => s.id === currentStage) || { name: currentStage };
 
                 if (isEditAction) {
                     sendAppNotification("⚠️ تعديل حضور", `مرحلة ${stageObj.name} قامت بعمل تعديل في الحضور ليوم ${date}`);
                 } else {
-                    sendAppNotification("📌 تسجيل جديد", `تم تسجيل حضور/غياب مرحلة ${stageObj.name} ليوم ${date}`);
+                    sendAppNotification("📌 تسجيل جديد", `تم حفظ الحضور بنجاح لمرحلة ${stageObj.name} ليوم ${date}`);
                 }
+
+                // إظهار إشعار وإعادة التوجيه للصفحة الرئيسية تلقائياً
+                showToast("✅ تم حفظ الحضور بنجاح!");
+                setTimeout(() => {
+                    showPage('page-main');
+                }, 1000);
 
             } catch(e) {
                 console.error(e);
+                alert("❌ حدث خطأ أثناء الحفظ، تأكد من الاتصال بالإنترنت.");
             }
         }
 
@@ -1487,7 +1509,7 @@
                 if(chartsWrapper) chartsWrapper.style.display = 'none';
             } else if (tab === 'charts') {
                 if(filterBox) filterBox.style.display = 'none';
-                if(tableWrapper) filterBox.style.display = 'none';
+                if(tableWrapper) tableWrapper.style.display = 'none';
                 if(chartsWrapper) chartsWrapper.style.display = 'block';
             } else {
                 if(filterBox) filterBox.style.display = 'none';
