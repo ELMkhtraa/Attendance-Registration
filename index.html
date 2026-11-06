@@ -194,6 +194,7 @@
             min-height: calc(100vh - 70px);
             display: flex;
             flex-direction: column;
+            padding-bottom: 95px; /* مساحة لعدم تغطية المحتوى بواسطة الزر العائم */
         }
 
         .page { display: none; flex: 1; }
@@ -273,6 +274,42 @@
         .btn-warning { background: #d97706; }
         .btn-danger { background: #d32f2f; }
 
+        /* زر الحفظ العائم في الأسفل */
+        .floating-save-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 580px;
+            padding: 0 14px;
+            z-index: 990;
+            display: none;
+        }
+
+        .btn-floating-save {
+            width: 100%;
+            background: linear-gradient(135deg, #0d7a5f, #06503e);
+            color: #ffffff;
+            padding: 14px;
+            border-radius: 16px;
+            font-size: 1.02rem;
+            font-weight: 900;
+            box-shadow: 0 6px 20px rgba(13, 122, 95, 0.35);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .btn-floating-save:active {
+            transform: scale(0.97);
+            box-shadow: 0 3px 10px rgba(13, 122, 95, 0.25);
+        }
+
         .filter-bar {
             background: #f1f5f9;
             padding: 10px 14px;
@@ -342,6 +379,7 @@
             background: #fff;
             color: #64748b;
             cursor: pointer;
+            transition: all 0.15s ease;
         }
 
         .btn-toggle.active-present { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
@@ -405,7 +443,7 @@
 
         #custom-toast {
             position: fixed;
-            bottom: 20px;
+            bottom: 85px;
             left: 50%;
             transform: translateX(-50%) translateY(100px);
             background: #1e293b;
@@ -415,11 +453,12 @@
             box-shadow: 0 6px 20px rgba(0,0,0,0.25);
             z-index: 9999;
             font-weight: 800;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             transition: transform 0.3s ease;
             text-align: center;
             max-width: 90%;
             border-right: 5px solid var(--primary);
+            line-height: 1.4;
         }
         #custom-toast.show { transform: translateX(-50%) translateY(0); }
 
@@ -459,6 +498,13 @@
 
     <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
     <div id="custom-toast"></div>
+
+    <!-- زر الحفظ العائم في الأسفل -->
+    <div class="floating-save-container" id="floating-save-box">
+        <button class="btn-floating-save" onclick="saveAttendanceManual()">
+            <i class="fa-solid fa-floppy-disk"></i> إتمام الحفظ والعودة للرئيسية
+        </button>
+    </div>
 
     <div class="drawer" id="drawer">
         <div class="drawer-header">
@@ -579,11 +625,6 @@
                 <input type="text" id="search-student" class="search-box" placeholder="🔍 بحث عن اسم مخدوم..." oninput="filterStudents()">
 
                 <div id="students-container"></div>
-
-                <!-- زر الحفظ من أسفل مع إعطاء إشعار والعودة تلقائياً للرئيسية -->
-                <button class="btn btn-primary" onclick="saveAttendanceManual()" style="width: 100%; margin-top: 14px; margin-bottom: 14px; padding: 12px; font-size: 1rem;">
-                    <i class="fa-solid fa-floppy-disk"></i> حفظ والعودة للرئيسية
-                </button>
             </div>
 
             <!-- التقارير الفرعية -->
@@ -749,7 +790,7 @@
             toast.classList.add('show');
             setTimeout(() => {
                 toast.classList.remove('show');
-            }, 4000);
+            }, 4500);
         }
 
         function sendAppNotification(title, bodyText) {
@@ -850,6 +891,12 @@
                 target.classList.add('active');
                 target.style.display = (pageId === 'page-manage') ? 'flex' : 'block';
             }
+
+            const floatingBox = document.getElementById('floating-save-box');
+            if (floatingBox) {
+                floatingBox.style.display = (pageId === 'page-register') ? 'block' : 'none';
+            }
+
             window.scrollTo(0, 0);
         }
 
@@ -1291,6 +1338,7 @@
             renderStudentListUI(attendanceMap);
         }
 
+        // حفظ تلقائي خفيف وفوري عند الضغط على زر "حاضر" لأي مخدوم
         async function toggleAttendance(btn, studentName) {
             const dateEl = document.getElementById('register-date');
             if(!dateEl) return;
@@ -1301,14 +1349,22 @@
                 return;
             }
 
-            const isCurrentlyPresent = btn.classList.contains('active-present');
-            if (isCurrentlyPresent) {
-                btn.classList.remove('active-present');
-            } else {
-                btn.classList.add('active-present');
+            // 1. التحديث الفوري المرئي في الواجهة
+            const isPresent = btn.classList.toggle('active-present');
+            const statusValue = isPresent ? 'حاضر' : firebase.firestore.FieldValue.delete();
+
+            // 2. الحفظ التلقائي الفوري في قاعدة البيانات بالخلفية
+            try {
+                const docRef = db.collection('attendance').doc(`${currentStage}_${date}`);
+                await docRef.set({
+                    [studentName]: statusValue
+                }, { merge: true });
+            } catch(e) {
+                console.error("خطأ في الحفظ التلقائي", e);
             }
         }
 
+        // عند الضغط على زر الحفظ العائم بالأسفل: يجلب الأعداد، يظهر الإشعار التفصيلي، ويرجع للرئيسية
         async function saveAttendanceManual() {
             const dateEl = document.getElementById('register-date');
             if(!dateEl) return;
@@ -1324,9 +1380,8 @@
             try {
                 const docSnap = await docRef.get({ source: navigator.onLine ? 'default' : 'cache' });
                 let attendanceMap = docSnap.exists ? docSnap.data() : {};
-                const registeredCount = Object.values(attendanceMap).filter(val => val === 'حاضر').length;
-                let isEditAction = registeredCount >= 1;
 
+                // تجميع وحفظ القائمة الحالية لضمان التطابق
                 const toggleButtons = document.querySelectorAll('.btn-toggle');
                 toggleButtons.forEach(btn => {
                     const studentName = btn.closest('.student-list-item').querySelector('.student-name').innerText;
@@ -1338,16 +1393,21 @@
                 });
 
                 await docRef.set(attendanceMap);
+
+                // حساب الأعداد لإظهارها في الإشعار
+                const totalStudents = currentStudentsList.length;
+                const presentCount = Object.values(attendanceMap).filter(val => val === 'حاضر').length;
+                const absentCount = totalStudents - presentCount;
+
                 const stageObj = stages.find(s => s.id === currentStage) || { name: currentStage };
 
-                if (isEditAction) {
-                    sendAppNotification("⚠️ تعديل حضور", `مرحلة ${stageObj.name} قامت بعمل تعديل في الحضور ليوم ${date}`);
-                } else {
-                    sendAppNotification("📌 تسجيل جديد", `تم حفظ الحضور بنجاح لمرحلة ${stageObj.name} ليوم ${date}`);
-                }
+                // إرسال إشعار النظام
+                sendAppNotification("📌 تم حفظ الحضور", `مرحلة ${stageObj.name}: حضر ${presentCount} من إجمالي ${totalStudents}`);
 
-                // إظهار إشعار النجاح والعودة للصفحة الرئيسية تلقائياً
-                showToast("✅ تم حفظ الحضور بنجاح!");
+                // إظهار التوست بالشاشة من تحت بالأعداد والتفاصيل
+                showToast(`✅ تم حفظ الحضور بنجاح!\nعدد الحاضرين: ${presentCount} | الغائبين: ${absentCount} | الإجمالي: ${totalStudents}`);
+
+                // الانتقال التلقائي إلى الصفحة الرئيسية
                 setTimeout(() => {
                     showPage('page-main');
                 }, 1000);
